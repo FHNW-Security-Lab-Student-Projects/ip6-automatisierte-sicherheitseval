@@ -19,13 +19,13 @@ code $env:AppData\Claude\claude_desktop_config.json
 # enter this in claude_desktop_config.json
 {
   "mcpServers": {
-    "weather": {
+    "VulnValidator": {
       "command": "uv",
       "args": [
         "--directory",
-        "C:\\ABSOLUTE\\PATH\\TO\\PARENT\\FOLDER\\ip6-automatisierte-sicherheitseval",
+        "C:\\Users\\marko\\PycharmProjects\\ip6-automatisierte-sicherheitseval",
         "run",
-        "src/weather.py"
+        "src/vuln_validator/mcp_server.py"
       ]
     }
   }

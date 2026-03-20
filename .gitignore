@@ -1,3 +1,7 @@
 other/
 .venv
 __pycache__/
+*.pyc
+
+
+scripts/

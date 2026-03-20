@@ -1,1 +1,3 @@
 other/
+.venv
+__pycache__/

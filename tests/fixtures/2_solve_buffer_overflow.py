@@ -8,7 +8,7 @@ def is_successful(state):
 def should_abort(state):
     return b"Access denied!\n" in state.posix.dumps(1)
 
-proj = angr.Project("tests/2_buffer_overflow", auto_load_libs=False) # angr takes binary as input and creates a project object
+proj = angr.Project("tests/fixtures/2_buffer_overflow", auto_load_libs=False) # angr takes binary as input and creates a project object
 init_state = proj.factory.full_init_state(
     stdin=angr.SimFileStream('stdin', size=80)
 )
@@ -24,7 +24,7 @@ if simulation.found:
     print(len(solution))
     print("flag: ", solution)
     import subprocess
-    result = subprocess.run(["./tests/2_buffer_overflow"], input=solution, capture_output=True)
+    result = subprocess.run(["./tests/fixtures/2_buffer_overflow"], input=solution, capture_output=True)
     print(f"[] Antwort des Programms: {result.stdout.decode()}")
 else:
     print("no flag")

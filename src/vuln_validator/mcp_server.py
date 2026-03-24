@@ -1,38 +1,51 @@
 from mcp.server.fastmcp import FastMCP
+from typing import Literal
 
-# Initialize FastMCP server
+from vuln_validator.core.angr_engine import run_analysis
+
 mcp = FastMCP("VulnValidator")
 
-# Constants
-
+@mcp.prompt()
+def find_vulnerability_workflow(target_path: str) -> str:
+    """
+    A workflow prompt that instructs the LLM to analyze code and validate the hypothesis rigorously.
+    """
+    return f"""
+    You are a rigorous Security Auditor. Your task is to analyze the source code or binary at `{target_path}`.
+    
+    Follow this strict procedure:
+    1. **Analyze**: Read the file at `{target_path}` (if source code) or inspect its properties. Formulate a hypothesis: "I suspect a [TYPE] vulnerability because..."
+    2. **Validate**: You MUST call the tool `validate_vulnerability` with the path and your suspected type to verify your hypothesis.
+       - Do NOT rely on your internal knowledge for the final verdict.
+    3. **Report**: Describe the results based on the tool's evidence and provide a detailed report. Your previous hypothesis is no longer relevant after validation. The tool's evidence is the only basis for your final report.
+       - If the tool is inconclusive: state clearly that automated validation failed. Do not guess. Just report the uncertainty.
+    """
 
 @mcp.tool()
-def check_stack_buffer_overflow(target_path: str) -> str:
+def validate_vulnerability(
+    target_path: str, 
+    vulnerability_type: Literal["stack_overflow", "heap_overflow", "format_string", "auto"] = "auto"
+) -> dict:
     """
-    Validates a stack buffer overflow exploit.
-    Use this tool to check if a binary at the given path is vulnerable.
-    Returns a summary including vulnerability status and evidence (e.g., overwritten EIP).
-    """
-    # TODO: Implement actual logic to run the binary, trigger the overflow, and analyze results.
-    is_vulnerable = True
-    evidence = "EIP overwritten with 0x41414141 ('AAAA')"
-    rip_address = "0x7fffffffe000"
+    Validates a vulnerability hypothesis using symbolic execution (angr).
+    If 'auto' is selected, the tool automatically detects the vulnerability type 
+    and runs all relevant solvers. Use this if you are unsure about the specific vulnerability class.
+    
+    Args:
+        target_path: Full path to the binary/source on the host system.
+        vulnerability_type: The type of vulnerability to check for.
+    
+    Returns:
+        A JSON object with: 'is_vulnerable' (bool), 'type' (str), 'evidence' (dict), 'message' (str).
+    """    
+    result = run_analysis(target_path, vulnerability_type)
 
-    if is_vulnerable:
-        return (
-            f"**Status:** VULNERABLE\n"
-            f"**Binary:** `{target_path}`\n"
-            f"**Evidence:** {evidence}\n"
-            f"**Instruction Pointer (RIP):** {rip_address}\n"
-            f"**Conclusion:** The buffer overflow was successful. A shell could be spawned."
-        )
-    else:
-        return f"**Status:** SAFE\nThe binary at `{target_path}` did not show signs of exploitation."
-
-def main():
-    # Initialize and run the server
-    mcp.run(transport="stdio")
-
+    if isinstance(result, str):
+        # Fallback: If the result is a string, we assume it's an error message or inconclusive result.
+        return {"error": result}
+    
+    return result
+    
 
 if __name__ == "__main__":
-    main()
+    mcp.run(transport="stdio")

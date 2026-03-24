@@ -12,9 +12,11 @@
       "command": "uv",
       "args": [
         "--directory",
-        "C:\\Users\\marko\\PycharmProjects\\ip6-automatisierte-sicherheitseval",
+        "C:\\Users\\PATH\\TO\\PROJECT\\ip6-automatisierte-sicherheitseval",
         "run",
-        "src/vuln_validator/mcp_server.py"
+        "python",
+        "-m",
+        "vuln_validator.mcp_server"
       ]
     }
   }

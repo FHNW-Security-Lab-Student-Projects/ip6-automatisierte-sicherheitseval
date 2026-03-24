@@ -1,35 +1,47 @@
-# ip6-automatisierte-sicherheitseval (vulnerability validation framework)
+# ip6-automatisierte-sicherheitseval
 
-This project includes a Model Context Protocol (MCP) server to allow AI assistants (like Claude Desktop) to safely interact with the vulnerability validation framework.
+Vulnerability validation framework with an MCP server for AI assistants (like Claude Desktop).
 
-### Setup for Claude Desktop
-1. Ensure `uv` and Python are installed on your host.
-2. Clone this repository
-3. Initialize the environment:
-```bash
-uv sync
-```
-4. Open claude_desktop_config.json and add the MCP-server:
+## Requirements
+- Python 3.13+
+- [uv](https://github.com/astral-sh/uv) package manager
+- Claude Desktop (optional, if you want MCP integration)
 
-```bash
-# For windows
+## Quick start
+1. Clone the repository.
+2. Install dependencies and the local package:
+
+   uv sync
+
+3. Verify package import (recommended, quick check):
+
+   uv run python -c "import vuln_validator; print('ok')"
+
+## Claude Desktop integration (Windows)
+Open the Claude Desktop config file:
+
 code $env:AppData\Claude\claude_desktop_config.json
-```
-```bash
-# enter this in claude_desktop_config.json
-{
-  "mcpServers": {
-    "VulnValidator": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "C:\\Users\\marko\\PycharmProjects\\ip6-automatisierte-sicherheitseval",
-        "run",
-        "src/vuln_validator/mcp_server.py"
-      ]
-    }
-  }
-}
-```
 
-5. Restart Claude Desktop. The new tools will appear in the "Connectors" menu.
+Copy the server block from `config/claude_desktop_config.example` and adjust only the project path.
+You can copy only the mcpServers section. The preferences section is optional and not required for VulnValidator.
+
+Restart Claude Desktop after saving the config.
+
+In Claude chat:
+1. Click +, then Connectors.
+2. Choose Add from VulnValidator.
+3. Select Find vulnerability workflow.
+4. Enter the target path and send.
+
+## Local usage without Claude Desktop
+Run the direct analysis script:
+
+uv run python scripts/run_direct_analysis.py <path_to_binary>
+
+Example:
+
+uv run python scripts/run_direct_analysis.py tests/fixtures/2_buffer_overflow
+
+## Troubleshooting
+- Error: ModuleNotFoundError: No module named vuln_validator
+  - Run uv sync again in the repository root.

@@ -45,3 +45,8 @@ uv run python scripts/run_direct_analysis.py tests/fixtures/2_buffer_overflow
 ## Troubleshooting
 - Error: ModuleNotFoundError: No module named vuln_validator
   - Run uv sync again in the repository root.
+
+## Tests
+Run MCP integration tests:
+
+uv run pytest tests/test_mcp_server.py -q

@@ -42,11 +42,36 @@ Example:
 
 uv run python scripts/run_direct_analysis.py tests/fixtures/2_buffer_overflow
 
-## Troubleshooting
+## Developer
+
+### Setup
+Install runtime and dev dependencies:
+
+```bash
+uv sync --extra dev
+```
+
+Install local git hooks (once per clone):
+
+```bash
+uv run pre-commit install
+uv run pre-commit install --hook-type pre-push
+```
+
+### Quality checks
+Run all configured pre-commit hooks manually:
+
+```bash
+uv run pre-commit run --all-files
+```
+
+### Tests
+Run full test suite:
+
+```bash
+uv run pytest
+```
+
+### Troubleshooting
 - Error: ModuleNotFoundError: No module named vuln_validator
-  - Run uv sync again in the repository root.
-
-## Tests
-Run MCP integration tests:
-
-uv run pytest tests/test_mcp_server.py -q
+   - Run uv sync in the repository root.

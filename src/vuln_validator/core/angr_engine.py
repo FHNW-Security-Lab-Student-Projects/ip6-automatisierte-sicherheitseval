@@ -31,6 +31,7 @@ class AngrAnalyzer:
         Creates the execution plan based on the requested vulnerability type.
         - auto: all solvers
         - specific type: matching solver first, then fallback with all others
+        - unknown type: fallback to auto behavior (all solvers)
         """
         registered_solvers = self._get_registered_solvers()
 
@@ -39,10 +40,7 @@ class AngrAnalyzer:
 
         matching = [s for s in registered_solvers if s.vulnerability_type == vuln_type]
         if not matching:
-            available_types = [s.vulnerability_type for s in registered_solvers]
-            raise ValueError(
-                f"Unknown vulnerability type: {vuln_type}. Available: {available_types + ['auto']}"
-            )
+            return registered_solvers
 
         remaining = [s for s in registered_solvers if s.vulnerability_type != vuln_type]
         return matching + remaining
@@ -62,11 +60,12 @@ class AngrAnalyzer:
         master_result = {
             "is_vulnerable": False,
             "findings": [],
-            "analyzed_types": [s.vulnerability_type for s in execution_plan],
+            "analyzed_types": [],
             "requested_type": vuln_type,
         }
 
         for index, solver in enumerate(execution_plan):
+            master_result["analyzed_types"].append(solver.vulnerability_type)
             try:
                 result = solver.solve(self.project)  # open-closed principle (swa)
                 master_result["findings"].append(result)

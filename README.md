@@ -58,7 +58,7 @@ uv run python scripts/run_direct_analysis.py tests/fixtures/2_buffer_overflow
 Install runtime and dev dependencies:
 
 ```bash
-uv sync --extra dev
+uv sync --group dev
 ```
 
 Install local git hooks (once per clone):

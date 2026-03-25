@@ -5,6 +5,7 @@ from vuln_validator.core.angr_engine import AngrAnalyzer
 
 mcp = FastMCP("VulnValidator")
 
+
 @mcp.prompt()
 def find_vulnerability_workflow(target_path: str) -> str:
     """
@@ -22,32 +23,35 @@ def find_vulnerability_workflow(target_path: str) -> str:
     """
     # TODO: Nächster Schritt: LLM soll target_path und function_name zur Validierung mitgeben
 
+
 @mcp.tool()
 def validate_vulnerability(
-    target_path: str, 
-    vulnerability_type: Literal["stack_overflow", "heap_overflow", "format_string", "auto"] = "auto"
+    target_path: str,
+    vulnerability_type: Literal[
+        "stack_overflow", "heap_overflow", "format_string", "auto"
+    ] = "auto",
 ) -> dict:
     """
     Validates a vulnerability hypothesis using symbolic execution (angr).
-    If 'auto' is selected, the tool automatically detects the vulnerability type 
+    If 'auto' is selected, the tool automatically detects the vulnerability type
     and runs all relevant solvers. Use this if you are unsure about the specific vulnerability class.
-    
+
     Args:
         target_path: Full path to the binary/source on the host system.
         vulnerability_type: The type of vulnerability to check for.
-    
+
     Returns:
         A JSON object with analysis results.
-    """    
+    """
     angr_analyzer = AngrAnalyzer(target_path)
     result = angr_analyzer.run_analysis(vulnerability_type)
 
     if isinstance(result, str):
         # Fallback: If the result is a string, we assume it's an error message or inconclusive result.
         return {"error": result}
-    
+
     return result
-    
+
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")

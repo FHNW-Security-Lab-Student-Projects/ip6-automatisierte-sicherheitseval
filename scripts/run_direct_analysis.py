@@ -1,7 +1,7 @@
 import json
 import sys
 
-from vuln_validator.core.angr_engine import run_analysis
+from vuln_validator.core.angr_engine import AngrAnalyzer
 
 
 def main() -> None:
@@ -17,7 +17,8 @@ def main() -> None:
 
     print(f"Start analysis for: {binary_path}")
 
-    result = run_analysis(binary_path, "auto")
+    angr_analyzer = AngrAnalyzer(binary_path)
+    result = angr_analyzer.run_analysis("auto")
 
     print(json.dumps(result, indent=2))
 

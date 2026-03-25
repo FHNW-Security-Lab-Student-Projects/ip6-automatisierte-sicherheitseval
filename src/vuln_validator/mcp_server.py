@@ -1,7 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 from typing import Literal
 
-from vuln_validator.core.angr_engine import run_analysis
+from vuln_validator.core.angr_engine import AngrAnalyzer
 
 mcp = FastMCP("VulnValidator")
 
@@ -20,6 +20,7 @@ def find_vulnerability_workflow(target_path: str) -> str:
     3. **Report**: Describe the results based on the tool's evidence and provide a detailed report. Your previous hypothesis is no longer relevant after validation. The tool's evidence is the only basis for your final report.
        - If the tool is inconclusive: state clearly that automated validation failed. Do not guess. Just report the uncertainty.
     """
+    # TODO: Nächster Schritt: LLM soll target_path und function_name zur Validierung mitgeben
 
 @mcp.tool()
 def validate_vulnerability(
@@ -36,9 +37,10 @@ def validate_vulnerability(
         vulnerability_type: The type of vulnerability to check for.
     
     Returns:
-        A JSON object with: 'is_vulnerable' (bool), 'type' (str), 'evidence' (dict), 'message' (str).
+        A JSON object with analysis results.
     """    
-    result = run_analysis(target_path, vulnerability_type)
+    angr_analyzer = AngrAnalyzer(target_path)
+    result = angr_analyzer.run_analysis(vulnerability_type)
 
     if isinstance(result, str):
         # Fallback: If the result is a string, we assume it's an error message or inconclusive result.

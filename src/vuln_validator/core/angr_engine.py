@@ -3,9 +3,11 @@ import logging
 from typing import Dict, Any, List
 from .solvers.base_solver import BaseSolver
 from .solvers.stack_solver import StackOverflowSolver
+
 # from .solvers.heap_solver import HeapOverflowSolver
 
-logging.getLogger('angr').setLevel(logging.ERROR)
+logging.getLogger("angr").setLevel(logging.ERROR)
+
 
 class AngrAnalyzer:
     def __init__(self, binary_path: str):
@@ -69,17 +71,20 @@ class AngrAnalyzer:
             try:
                 result = solver.solve(self.project)  # open-closed principle (swa)
                 master_result["findings"].append(result)
-                
+
                 if result.get("is_vulnerable"):
                     master_result["is_vulnerable"] = True
 
                     # When a specific type is requested, we can stop after the first match. For 'auto', we want to run all solvers to gather comprehensive findings.
-                    if vuln_type != "auto" and index == 0 and solver.vulnerability_type == vuln_type:
+                    if (
+                        vuln_type != "auto"
+                        and index == 0
+                        and solver.vulnerability_type == vuln_type
+                    ):
                         return master_result
             except Exception as e:
-                master_result["findings"].append({
-                    "type": solver.vulnerability_type,
-                    "error": str(e)
-                })
+                master_result["findings"].append(
+                    {"type": solver.vulnerability_type, "error": str(e)}
+                )
 
         return master_result

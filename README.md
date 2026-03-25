@@ -11,16 +11,22 @@ Vulnerability validation framework with an MCP server for AI assistants (like Cl
 1. Clone the repository.
 2. Install dependencies and the local package:
 
-   uv sync
+```bash
+uv sync
+```
 
 3. Verify package import (recommended, quick check):
 
-   uv run python -c "import vuln_validator; print('ok')"
+```bash
+uv run python -c "import vuln_validator; print('ok')"
+```
 
 ## Claude Desktop integration (Windows)
 Open the Claude Desktop config file:
 
+```bash
 code $env:AppData\Claude\claude_desktop_config.json
+```
 
 Copy the server block from `config/claude_desktop_config.example` and adjust only the project path.
 You can copy only the mcpServers section. The preferences section is optional and not required for VulnValidator.
@@ -36,11 +42,15 @@ In Claude chat:
 ## Local usage without Claude Desktop
 Run the direct analysis script:
 
+```bash
 uv run python scripts/run_direct_analysis.py <path_to_binary>
+```
 
 Example:
 
+```bash
 uv run python scripts/run_direct_analysis.py tests/fixtures/2_buffer_overflow
+```
 
 ## Developer
 

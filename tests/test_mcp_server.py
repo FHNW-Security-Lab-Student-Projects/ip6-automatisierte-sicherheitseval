@@ -49,7 +49,7 @@ def test_validate_vulnerability_tool_end_to_end() -> None:
             "validate_vulnerability",
             {
                 "target_path": str(FIXTURE_BINARY),
-                "vulnerability_type": "auto",
+                "vulnerability_type": "stack_overflow",
             },
         )
 
@@ -61,9 +61,18 @@ def test_validate_vulnerability_tool_end_to_end() -> None:
 
     payload = json.loads(content_blocks[0].text)
     assert payload["is_vulnerable"] is True
-    assert payload["type"] in {"stack_overflow", "heap_overflow", "format_string"}
-    assert isinstance(payload.get("evidence"), dict)
-    assert isinstance(payload.get("message"), str)
+    assert payload["requested_type"] == "stack_overflow"
+    assert isinstance(payload.get("analyzed_types"), list)
+    assert payload["analyzed_types"]
+
+    findings = payload.get("findings")
+    assert isinstance(findings, list)
+    assert findings
+
+    first_finding = findings[0]
+    assert first_finding["type"] in {"stack_overflow", "heap_overflow", "format_string"}
+    assert isinstance(first_finding.get("evidence"), dict)
+    assert isinstance(first_finding.get("message"), str)
 
 # TODO: Mehr Testfälle (spezifisch stack_overflow, heap_overflow, format_string) mit verschiedenen Binärdateien, um die Genauigkeit und Robustheit der Analyse zu überprüfen.
 # TODO: Testfälle binaries und source code, um die Fähigkeit der Analyse zu überprüfen, mit verschiedenen Eingabeformaten umzugehen.

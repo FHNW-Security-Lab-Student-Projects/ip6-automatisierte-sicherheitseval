@@ -7,7 +7,7 @@ import anyio
 
 from vuln_validator.mcp_server import mcp
 
-FIXTURE_BINARY = Path(__file__).parent / "fixtures" / "2_buffer_overflow"
+FIXTURE_BINARY = Path(__file__).parent / "fixtures" / "5_my_vuln"
 
 
 # This test validates the integration of the MCP server with the vulnerability analysis tool. It checks that the prompt and tool are registered correctly.

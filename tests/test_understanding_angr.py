@@ -44,9 +44,6 @@ def test_constraint_logic():
 
     assert state.solver.symbolic(state.regs.rax) is True
     assert state.solver.eval(state.regs.rax) > 100
-    assert (
-        state.solver.eval(state.regs.rax) == 101
-    )  # könnte auch 102, 103, ... sein, aber 101 ist die kleinste mögliche Lösung
 
     state.solver.add(state.regs.rax == 200)
 

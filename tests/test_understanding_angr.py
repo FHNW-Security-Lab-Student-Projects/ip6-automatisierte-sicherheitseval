@@ -127,3 +127,47 @@ def test_crash_detection():
     assert len(simgr.active) == 0
     assert len(simgr.errored) == 1
     assert state.solver.eval(state.regs.rip) == 0xDEADBEEF
+
+
+def test_symbolic_rip_detection():
+    proj = angr.Project("tests/fixtures/2_buffer_overflow", auto_load_libs=False)
+    state = proj.factory.entry_state()
+
+    simgr = proj.factory.simulation_manager(state)
+
+    sym_rip = claripy.BVS("sym_rip", 64)
+    state.regs.rip = sym_rip
+    simgr.step()
+
+    assert len(simgr.active) == 0
+    assert len(simgr.errored) == 1
+    assert state.solver.symbolic(state.regs.rip) is True
+
+
+def test_stdin_injection():
+    proj = angr.Project("tests/fixtures/2_buffer_overflow", auto_load_libs=False)
+
+    symbolic_input = claripy.BVS("symbolic_input", 64 * 8)
+
+    state = proj.factory.entry_state(stdin=symbolic_input)
+
+    simgr = proj.factory.simulation_manager(state)
+
+    simgr.run(n=1)
+
+    assert len(simgr.active) > 0
+    assert (
+        simgr.active[0].solver.eval(symbolic_input) >= 0
+    )  # Überprüfen, dass der symbolische Input einen gültigen Wert hat (z.B. nicht negativ)
+
+
+def test_limited_run():
+    proj = angr.Project("tests/fixtures/2_buffer_overflow", auto_load_libs=False)
+    state = proj.factory.entry_state()
+
+    simgr = proj.factory.simulation_manager(state)
+
+    simgr.run(n=10)
+
+    assert len(simgr.active) > 0
+    assert len(simgr.errored) == 0

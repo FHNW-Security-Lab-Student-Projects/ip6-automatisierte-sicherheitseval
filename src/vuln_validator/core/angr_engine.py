@@ -6,7 +6,7 @@ from .solvers.stack_solver import StackOverflowSolver
 
 # from .solvers.heap_solver import HeapOverflowSolver
 
-logging.getLogger("angr").setLevel(logging.ERROR)
+logger = logging.getLogger(__name__)
 
 
 class AngrAnalyzer:

@@ -1,6 +1,8 @@
 from mcp.server.fastmcp import FastMCP
 from typing import Literal
 
+from vuln_validator.logging_config import setup_logging
+
 from vuln_validator.core.angr_engine import AngrAnalyzer
 
 mcp = FastMCP("VulnValidator")
@@ -54,4 +56,5 @@ def validate_vulnerability(
 
 
 if __name__ == "__main__":
+    setup_logging()
     mcp.run(transport="stdio")

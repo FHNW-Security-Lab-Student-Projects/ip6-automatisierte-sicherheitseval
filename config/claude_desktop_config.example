@@ -1,0 +1,23 @@
+{
+  "preferences": {
+    "menuBarEnabled": false,
+    "legacyQuickEntryEnabled": false,
+    "coworkScheduledTasksEnabled": false,
+    "ccdScheduledTasksEnabled": false,
+    "coworkWebSearchEnabled": true,
+    "sidebarMode": "chat"
+  },
+  "mcpServers": {
+    "VulnValidator": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "C:\\Users\\PATH\\TO\\PROJECT\\ip6-automatisierte-sicherheitseval",
+        "run",
+        "python",
+        "-m",
+        "vuln_validator.mcp_server"
+      ]
+    }
+  }
+}

@@ -84,4 +84,17 @@ uv run pytest
 
 ### Troubleshooting
 - Error: ModuleNotFoundError: No module named vuln_validator
-   - Run uv sync in the repository root.
+   - Run `uv sync` in the repository root.
+
+Get last audit-log:
+```bash
+Get-Content logs/audit_log.json -Tail 1 | ConvertFrom-Json
+# Linux
+tail -n 1 logs/audit_log.json | jq
+```
+Get all audit-logs:
+```bash
+Get-Content logs/audit_log.json | ForEach-Object { ConvertFrom-Json $_ }
+# Linux
+cat logs/audit_log.json | jq -s '.'
+```

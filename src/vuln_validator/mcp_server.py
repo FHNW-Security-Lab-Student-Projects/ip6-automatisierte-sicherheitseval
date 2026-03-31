@@ -1,9 +1,10 @@
 from mcp.server.fastmcp import FastMCP
 from typing import Literal
 
-from vuln_validator.logging_config import setup_logging
+from vuln_validator.utils.logging_config import setup_logging
 
 from vuln_validator.core.angr_engine import AngrAnalyzer
+from vuln_validator.utils.audit_logger import audit_log
 
 mcp = FastMCP("VulnValidator")
 
@@ -27,6 +28,7 @@ def find_vulnerability_workflow(target_path: str) -> str:
 
 
 @mcp.tool()
+@audit_log("validate_vulnerability")
 def validate_vulnerability(
     target_path: str,
     vulnerability_type: Literal[

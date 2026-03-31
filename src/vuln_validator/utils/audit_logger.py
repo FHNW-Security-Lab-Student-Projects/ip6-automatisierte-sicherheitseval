@@ -1,5 +1,3 @@
-# src/vuln_validator/utils/audit_logger.py
-
 import json
 import logging
 from functools import wraps
@@ -15,6 +13,7 @@ audit_logger.propagate = False
 # init log file and handler only once to avoid duplicates
 if not audit_logger.handlers:
     log_file = Path("logs/audit_log.json")
+    log_file.parent.mkdir(exist_ok=True)
     handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
     # no formatter needed since we log raw JSON strings
     audit_logger.addHandler(handler)

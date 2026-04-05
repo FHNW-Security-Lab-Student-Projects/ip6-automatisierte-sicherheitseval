@@ -19,6 +19,7 @@ class StackOverflowSolver(BaseSolver):
         logger.info("Running %s solver...", self.vulnerability_type)
 
         sym_input = claripy.BVS("my_input", 256 * 8)
+        analysis_mode = "targeted" if target_function else "full_binary"
 
         if not project.kb.functions:
             project.analyses.CFGFast()
@@ -29,6 +30,9 @@ class StackOverflowSolver(BaseSolver):
                 if symbol is None:
                     raise KeyError
                 addr = project.kb.functions[symbol.rebased_addr].addr
+                logger.debug(
+                    "Target function '%s' found at address: 0x%x", target_function, addr
+                )
             except KeyError:
                 logger.error(
                     "Target function '%s' not found in binary.", target_function
@@ -36,59 +40,89 @@ class StackOverflowSolver(BaseSolver):
                 return {
                     "is_vulnerable": False,
                     "type": self.vulnerability_type,
-                    "evidence": {},
-                    "message": f"Target function '{target_function}' not found in binary.",
+                    "mode": analysis_mode,
+                    "evidence": {
+                        "error": f"Symbol '{target_function}' not found in binary."
+                    },
+                    "message": f"Analysis aborted: Target function '{target_function}' does not exist or has no symbol table entry.",
                 }
-            logger.info("Creating call state for function: %s", target_function)
             state = project.factory.call_state(addr, stdin=sym_input)
+            logger.info("Created call state for function: %s", target_function)
         else:
-            logger.info("Creating entry state for the binary.")
             state = project.factory.entry_state(stdin=sym_input)
+            logger.info("Creating entry state for the binary.")
 
         simgr = project.factory.simulation_manager(state)
 
         simgr.run(n=200)
 
         found_vuln = False
+        vulnerabilities = []
 
-        if len(simgr.errored) > 0:
-            logger.info("Potential stack overflow detected!")
-            for errored_state in simgr.errored:
-                if state.solver.symbolic(errored_state.regs.rip):
-                    poc = errored_state.solver.eval(sym_input, cast_to=bytes)
-                    logger.info(
-                        "Proof of Concept (input that causes overflow): %s", poc
-                    )
-                    found_vuln = True
+        def extract_details(state, state_type):
+            details = {"state_type": state_type, "input": None}
+            try:
+                poc = state.solver.eval(sym_input, cast_to=bytes)
+                details["input"] = poc.hex()
+            except Exception as e:
+                logger.warning(
+                    "Failed to extract input from %s state: %s", state_type, str(e)
+                )
+                details["input"] = "Extraction failed"
 
-        if len(simgr.unconstrained) > 0:
-            logger.info(
-                "%s unconstrained states found. Checking for symbolic RIP...",
-                len(simgr.unconstrained),
-            )
-            for u_state in simgr.unconstrained:
-                if u_state.solver.symbolic(u_state.regs.rip):
-                    logger.info(
-                        "RIP is symbolic in unconstrained state (Control Flow Hijack)!"
-                    )
-                    poc = u_state.solver.eval(sym_input, cast_to=bytes)
-                    logger.info("Proof of Concept (Hex): %s", poc.hex())
-                    logger.debug("Proof of Concept (Raw): %s", poc)
-                    found_vuln = True
+            logger.debug("Extracted details from %s state: %s", state_type, details)
+            return details
 
-        if not found_vuln:
-            logger.info("No stack overflow detected.")
+        for err_state in simgr.errored:
+            if err_state.solver.symbolic(err_state.regs.rip):
+                vuln_data = extract_details(err_state, "errored")
+                vulnerabilities.append(vuln_data)
+                found_vuln = True
+                logger.info("Errored state with symbolic RIP detected: %s", vuln_data)
 
-        return {
-            "is_vulnerable": found_vuln,
-            "type": self.vulnerability_type,
-            "evidence": {
-                "errored_states": len(simgr.errored),
-                "unconstrained_states": len(simgr.unconstrained),
-            },
-            "message": (
-                "Stack overflow vulnerability detected."
-                if found_vuln
-                else "No stack overflow vulnerability detected."
-            ),
-        }
+        for u_state in simgr.unconstrained:
+            if u_state.solver.symbolic(u_state.regs.rip):
+                vuln_data = extract_details(u_state, "unconstrained")
+                vulnerabilities.append(vuln_data)
+                found_vuln = True
+                logger.info(
+                    "Unconstrained state with symbolic RIP detected: %s", vuln_data
+                )
+
+        logger.info(vulnerabilities)
+
+        if found_vuln:
+            return {
+                "is_vulnerable": True,
+                "type": self.vulnerability_type,
+                "mode": analysis_mode,
+                "target_function": target_function,
+                "evidence": {
+                    "count": len(vulnerabilities),
+                    "findings": vulnerabilities,
+                    "payload_hex": (
+                        vulnerabilities[0]["input"] if vulnerabilities else None
+                    ),
+                },
+                "message": (
+                    f"Stack Overflow confirmed in {'function ' + target_function if target_function else 'binary'}."
+                    f" Control flow hijack possible via symbolic RIP. "
+                ),
+            }
+        else:
+            return {
+                "is_vulnerable": False,
+                "type": self.vulnerability_type,
+                "mode": analysis_mode,
+                "target_function": target_function,
+                "evidence": {
+                    "count": 0,
+                    "findings": [],
+                    "errored_states": len(simgr.errored),
+                    "unconstrained_states": len(simgr.unconstrained),
+                },
+                "message": (
+                    f"No stack overflow found in {'function ' + target_function if target_function else 'binary'}."
+                    f" States terminated normally or crashed with concrete RIP."
+                ),
+            }

@@ -13,12 +13,37 @@ class StackOverflowSolver(BaseSolver):
     def vulnerability_type(self) -> str:
         return "stack_overflow"
 
-    def solve(self, project: angr.Project) -> Dict[str, Any]:
+    def solve(
+        self, project: angr.Project, target_function: str = None
+    ) -> Dict[str, Any]:
         logger.info("Running %s solver...", self.vulnerability_type)
 
         sym_input = claripy.BVS("my_input", 256 * 8)
 
-        state = project.factory.entry_state(stdin=sym_input)
+        if not project.kb.functions:
+            project.analyses.CFGFast()
+
+        if target_function:
+            try:
+                symbol = project.loader.main_object.get_symbol(target_function)
+                if symbol is None:
+                    raise KeyError
+                addr = project.kb.functions[symbol.rebased_addr].addr
+            except KeyError:
+                logger.error(
+                    "Target function '%s' not found in binary.", target_function
+                )
+                return {
+                    "is_vulnerable": False,
+                    "type": self.vulnerability_type,
+                    "evidence": {},
+                    "message": f"Target function '{target_function}' not found in binary.",
+                }
+            logger.info("Creating call state for function: %s", target_function)
+            state = project.factory.call_state(addr, stdin=sym_input)
+        else:
+            logger.info("Creating entry state for the binary.")
+            state = project.factory.entry_state(stdin=sym_input)
 
         simgr = project.factory.simulation_manager(state)
 

@@ -47,7 +47,9 @@ class AngrAnalyzer:
         remaining = [s for s in registered_solvers if s.vulnerability_type != vuln_type]
         return matching + remaining
 
-    def run_analysis(self, vuln_type: str = "auto") -> Dict[str, Any]:
+    def run_analysis(
+        self, vuln_type: str = "auto", target_function: str = None
+    ) -> Dict[str, Any]:
         """
         Executes the analysis workflow:
         1. Load binary
@@ -69,7 +71,9 @@ class AngrAnalyzer:
         for index, solver in enumerate(execution_plan):
             master_result["analyzed_types"].append(solver.vulnerability_type)
             try:
-                result = solver.solve(self.project)  # open-closed principle (swa)
+                result = solver.solve(
+                    self.project, target_function
+                )  # open-closed principle (swa)
                 master_result["findings"].append(result)
 
                 if result.get("is_vulnerable"):

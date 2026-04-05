@@ -15,6 +15,7 @@ def main() -> None:
     default_binary_path = "tests/fixtures/5_my_vuln"
     args = sys.argv[1:]
     binary_path = args[0] if args else default_binary_path
+    target_function = args[1] if len(args) > 1 else None
 
     if not Path(binary_path).exists():
         logger.error(f"Binary not found: {binary_path}")
@@ -47,7 +48,7 @@ def main() -> None:
     try:
         # execute analysis with auto-detection of vulnerability type
         angr_analyzer = AngrAnalyzer(binary_path)
-        result = angr_analyzer.run_analysis("auto")
+        result = angr_analyzer.run_analysis("auto", target_function)
 
         # developer logging for debugging and insight into results
         logger.info("Analysis completed.")

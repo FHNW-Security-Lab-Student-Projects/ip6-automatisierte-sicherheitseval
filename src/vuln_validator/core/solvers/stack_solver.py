@@ -1,7 +1,7 @@
 from .base_solver import BaseSolver
 import angr
 import claripy
-from typing import Dict, Any
+from typing import List, Dict, Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -37,15 +37,13 @@ class StackOverflowSolver(BaseSolver):
                 logger.error(
                     "Target function '%s' not found in binary.", target_function
                 )
-                return {
-                    "is_vulnerable": False,
-                    "type": self.vulnerability_type,
-                    "mode": analysis_mode,
-                    "evidence": {
-                        "error": f"Symbol '{target_function}' not found in binary."
-                    },
-                    "message": f"Analysis aborted: Target function '{target_function}' does not exist or has no symbol table entry.",
-                }
+                return self._build_result(
+                    is_vulnerable=False,
+                    mode=analysis_mode,
+                    target_function=target_function,
+                    findings=[],
+                    message=f"Analysis aborted: Target function '{target_function}' does not exist or has no symbol table entry.",
+                )
             state = project.factory.call_state(addr, stdin=sym_input)
             logger.info("Created call state for function: %s", target_function)
         else:
@@ -92,37 +90,37 @@ class StackOverflowSolver(BaseSolver):
         logger.info(vulnerabilities)
 
         if found_vuln:
-            return {
-                "is_vulnerable": True,
-                "type": self.vulnerability_type,
-                "mode": analysis_mode,
-                "target_function": target_function,
-                "evidence": {
-                    "count": len(vulnerabilities),
-                    "findings": vulnerabilities,
-                    "payload_hex": (
-                        vulnerabilities[0]["input"] if vulnerabilities else None
-                    ),
-                },
-                "message": (
-                    f"Stack Overflow confirmed in {'function ' + target_function if target_function else 'binary'}."
-                    f" Control flow hijack possible via symbolic RIP. "
-                ),
-            }
+            message = (
+                f"Stack Overflow confirmed in {'function ' + target_function if target_function else 'binary'}."
+                f" Control flow hijack possible via symbolic RIP. "
+            )
         else:
-            return {
-                "is_vulnerable": False,
-                "type": self.vulnerability_type,
-                "mode": analysis_mode,
-                "target_function": target_function,
-                "evidence": {
-                    "count": 0,
-                    "findings": [],
-                    "errored_states": len(simgr.errored),
-                    "unconstrained_states": len(simgr.unconstrained),
-                },
-                "message": (
-                    f"No stack overflow found in {'function ' + target_function if target_function else 'binary'}."
-                    f" States terminated normally or crashed with concrete RIP."
-                ),
-            }
+            message = (
+                f"No stack overflow found in {'function ' + target_function if target_function else 'binary'}."
+                f" States terminated normally or crashed with concrete RIP."
+            )
+
+        return self._build_result(
+            found_vuln, analysis_mode, target_function, vulnerabilities, message
+        )
+
+    def _build_result(
+        self,
+        is_vulnerable: bool,
+        mode: str,
+        target_function: str,
+        findings: List[Dict],
+        message: str,
+    ) -> Dict[str, Any]:
+        return {
+            "is_vulnerable": is_vulnerable,
+            "type": self.vulnerability_type,
+            "mode": mode,
+            "target_function": target_function,
+            "evidence": {
+                "count": len(findings),
+                "findings": findings,
+                "payload_hex": (findings[0]["input"] if findings else None),
+            },
+            "message": message,
+        }

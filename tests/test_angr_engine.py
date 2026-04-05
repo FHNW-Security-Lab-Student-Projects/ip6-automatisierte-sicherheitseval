@@ -26,8 +26,9 @@ class DummySolver(BaseSolver):
     def vulnerability_type(self) -> str:
         return self._vuln_type
 
-    def solve(self, project) -> Dict[str, Any]:
+    def solve(self, project, target_function) -> Dict[str, Any]:
         self._calls.append(self._vuln_type)
+        self._received_target = target_function
         if self._error:
             raise self._error
         return self._result
@@ -68,7 +69,7 @@ def test_run_analysis_auto_runs_all_solvers(monkeypatch) -> None:
     ]
     analyzer = _analyzer_with_solvers(monkeypatch, solvers)
 
-    result = analyzer.run_analysis("auto")
+    result = analyzer.run_analysis("auto", "main")
 
     assert calls == ["stack_overflow", "heap_overflow"]
     assert result["requested_type"] == "auto"
@@ -173,3 +174,17 @@ def test_run_analysis_unknown_type_falls_back_to_auto(monkeypatch) -> None:
     assert calls == ["stack_overflow", "heap_overflow"]
     assert result["analyzed_types"] == ["stack_overflow", "heap_overflow"]
     assert len(result["findings"]) == 2
+
+
+def test_run_analysis_passes_target_function_to_solver(monkeypatch) -> None:
+    """
+    Tests if the target_function parameter is correctly passed from the AngrAnalyzer to the solver's solve method, allowing solvers to focus their analysis on a specific function when requested.
+    """
+    calls = []
+    solver = DummySolver("stack_overflow", calls)
+    analyzer = _analyzer_with_solvers(monkeypatch, [solver])
+
+    analyzer.run_analysis("stack_overflow", target_function="vulnerable_func")
+
+    assert solver._received_target == "vulnerable_func"
+    assert calls == ["stack_overflow"]

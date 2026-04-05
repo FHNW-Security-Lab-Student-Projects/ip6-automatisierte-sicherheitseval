@@ -67,3 +67,32 @@ class TestStackOverflowSolver:
         assert isinstance(result["evidence"], dict)
         assert "errored_states" in result["evidence"]
         assert "unconstrained_states" in result["evidence"]
+
+    # def test_stack_overflow_with_target_function(self, solver, vuln_project):
+    #     """
+    #     Tests if the solver correctly uses the target_function parameter to jump
+    #     directly to the vulnerable function and detect the overflow.
+    #     """
+    #     # We force the solver to start directly in 'vulnerable_function'
+    #     result = solver.solve(vuln_project, target_function="vulnerable_function")
+
+    #     assert result["is_vulnerable"] is True
+    #     assert result["type"] == "stack_overflow"
+    #     assert "call state" in result.get("message", "").lower() or "vulnerable_function" in result.get("message", "")
+
+    #     # Evidence should be present
+    #     evidence = result.get("evidence", {})
+    #     assert evidence.get("unconstrained_states", 0) > 0
+
+    def test_solver_with_nonexistent_function(self, solver, vuln_project):
+        """
+        Tests how the solver handles a target_function name that does not exist in the binary.
+        Expected: Graceful handling (is_vulnerable == False) and an informative message.
+        """
+        result = solver.solve(vuln_project, target_function="does_not_exist_123")
+
+        assert result["is_vulnerable"] is False
+        assert (
+            "not found" in result.get("message", "").lower()
+            or "error" in result.get("message", "").lower()
+        )

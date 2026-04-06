@@ -19,7 +19,6 @@ class StackOverflowSolver(BaseSolver):
         logger.info("Running %s solver...", self.vulnerability_type)
 
         sym_input = claripy.BVS("my_input", 256 * 8)
-        analysis_mode = "targeted" if target_function else "full_binary"
 
         if not project.kb.functions:
             project.analyses.CFGFast()
@@ -39,10 +38,9 @@ class StackOverflowSolver(BaseSolver):
                 )
                 return self._build_result(
                     is_vulnerable=False,
-                    mode=analysis_mode,
                     target_function=target_function,
-                    findings=[],
-                    message=f"Analysis aborted: Target function '{target_function}' does not exist or has no symbol table entry.",
+                    evidence=[],
+                    message=f"Stack overflow analysis aborted: Target function '{target_function}' does not exist or has no symbol table entry.",
                 )
             state = project.factory.call_state(addr, stdin=sym_input)
             logger.info("Created call state for function: %s", target_function)
@@ -55,39 +53,42 @@ class StackOverflowSolver(BaseSolver):
         simgr.run(n=200)
 
         found_vuln = False
-        vulnerabilities = []
+        evidence_list = []
 
         def extract_details(state, state_type):
-            details = {"state_type": state_type, "input": None}
+            details = {
+                "state_type": state_type,
+                "input_hex": None,
+                "description": f"{state_type.capitalize()} state with symbolic RIP detected.",
+            }
             try:
                 poc = state.solver.eval(sym_input, cast_to=bytes)
-                details["input"] = poc.hex()
+                details["input_hex"] = poc.hex()
             except Exception as e:
                 logger.warning(
                     "Failed to extract input from %s state: %s", state_type, str(e)
                 )
-                details["input"] = "Extraction failed"
+                details["input_hex"] = "Extraction failed"
 
             logger.debug("Extracted details from %s state: %s", state_type, details)
             return details
 
-        for err_state in simgr.errored:
-            if err_state.solver.symbolic(err_state.regs.rip):
-                vuln_data = extract_details(err_state, "errored")
-                vulnerabilities.append(vuln_data)
-                found_vuln = True
-                logger.info("Errored state with symbolic RIP detected: %s", vuln_data)
+        states_to_check = [
+            (simgr.errored, "errored"),
+            (simgr.unconstrained, "unconstrained"),
+        ]
 
-        for u_state in simgr.unconstrained:
-            if u_state.solver.symbolic(u_state.regs.rip):
-                vuln_data = extract_details(u_state, "unconstrained")
-                vulnerabilities.append(vuln_data)
-                found_vuln = True
-                logger.info(
-                    "Unconstrained state with symbolic RIP detected: %s", vuln_data
-                )
-
-        logger.info(vulnerabilities)
+        for state_list, state_type in states_to_check:
+            for state in state_list:
+                if state.solver.symbolic(state.regs.rip):
+                    vuln_data = extract_details(state, state_type)
+                    evidence_list.append(vuln_data)
+                    found_vuln = True
+                    logger.info(
+                        "%s state with symbolic RIP detected: %s",
+                        state_type.capitalize(),
+                        vuln_data,
+                    )
 
         if found_vuln:
             message = (
@@ -100,27 +101,19 @@ class StackOverflowSolver(BaseSolver):
                 f" States terminated normally or crashed with concrete RIP."
             )
 
-        return self._build_result(
-            found_vuln, analysis_mode, target_function, vulnerabilities, message
-        )
+        return self._build_result(found_vuln, target_function, evidence_list, message)
 
     def _build_result(
         self,
         is_vulnerable: bool,
-        mode: str,
         target_function: str,
-        findings: List[Dict],
+        evidence: List[Dict],
         message: str,
     ) -> Dict[str, Any]:
         return {
             "is_vulnerable": is_vulnerable,
             "type": self.vulnerability_type,
-            "mode": mode,
             "target_function": target_function,
-            "evidence": {
-                "count": len(findings),
-                "findings": findings,
-                "payload_hex": (findings[0]["input"] if findings else None),
-            },
+            "evidence": evidence,
             "message": message,
         }

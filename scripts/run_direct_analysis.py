@@ -52,6 +52,7 @@ def main() -> None:
 
         # developer logging for debugging and insight into results
         logger.info("Analysis completed.")
+        logger.info(result)
         logger.debug(json.dumps(result, indent=2))
 
         # audit log with structured summary of results for later review and metrics
@@ -62,8 +63,8 @@ def main() -> None:
                 "status": "success",
                 "summary": {
                     "is_vulnerable": result.get("is_vulnerable"),
-                    "findings_count": len(result.get("findings", [])),
-                    "types_checked": result.get("analyzed_types", []),
+                    "analyzed_types": result.get("analyzed_types"),
+                    "message": result.get("messages", []),
                 },
             }
         )

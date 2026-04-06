@@ -43,13 +43,13 @@ In Claude chat:
 Run the direct analysis script:
 
 ```bash
-uv run python scripts/run_direct_analysis.py <path_to_binary>
+uv run python scripts/run_direct_analysis.py <path_to_binary> <target_function>
 ```
 
 Example:
 
 ```bash
-uv run python scripts/run_direct_analysis.py tests/fixtures/2_buffer_overflow
+uv run python scripts/run_direct_analysis.py tests/fixtures/5_my_vuln vulnerable_function
 ```
 
 ## Developer

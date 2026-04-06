@@ -1,5 +1,6 @@
 import angr
 import logging
+from pathlib import Path
 from typing import Dict, Any, List
 from .solvers.base_solver import BaseSolver
 from .solvers.stack_solver import StackOverflowSolver
@@ -11,15 +12,44 @@ logger = logging.getLogger(__name__)
 
 class AngrAnalyzer:
     def __init__(self, binary_path: str):
-        self.binary_path = binary_path
+        self.binary_path = self._resolve_binary_path(binary_path)
         self.project = None
         self.results: List[Dict[str, Any]] = []
+
+    def _resolve_binary_path(self, path_str: str) -> str:
+        """
+        Ensures the path points to a binary file.
+        If a source file is given, it attemts to find the corresponding binary by removing the extension.
+        """
+        path = Path(path_str)
+
+        if not path.exists():
+            logger.error(f"Provided path '{path}' does not exist.")
+            raise FileNotFoundError(f"Provided path '{path}' does not exist.")
+
+        if path.suffix in [".c"]:  # TODO Erweitern
+            binary_candidate = path.with_suffix("")
+            if binary_candidate.exists():
+                logger.info(
+                    f"Resolved source file '{path}' to binary '{binary_candidate}'."
+                )
+                return str(binary_candidate)
+            else:
+                logger.warning(
+                    f"Source file '{path}' provided but corresponding binary '{binary_candidate}' not found."
+                )
+                raise FileNotFoundError(
+                    f"Source file '{path}' provided but corresponding binary '{binary_candidate}' not found."
+                )
+
+        return str(path)
 
     def load_binary(self):
         """Loads the binary into an angr project."""
         try:
             self.project = angr.Project(self.binary_path, auto_load_libs=False)
         except Exception as e:
+            logger.error(f"Failed to load binary at '{self.binary_path}': {str(e)}")
             raise ValueError(f"Failed to load binary: {str(e)}")
 
     def _get_registered_solvers(self) -> List[BaseSolver]:
@@ -101,8 +131,7 @@ class AngrAnalyzer:
 
             except Exception as e:
                 logger.error(
-                    f"Error during analysis with solver '{solver.vulnerability_type}': {str(e)}",
-                    exc_info=True,
+                    f"Error during analysis with solver '{solver.vulnerability_type}': {str(e)}"
                 )
                 master_result["messages"].append(
                     f"Error in {solver.vulnerability_type} solver: {str(e)}"

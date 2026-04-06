@@ -18,6 +18,14 @@
         "-m",
         "vuln_validator.mcp_server"
       ]
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\Users\\PATH\\TO\\YOUR\\CODE\\FILES"
+      ]
     }
   }
 }

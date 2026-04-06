@@ -15,22 +15,28 @@ def find_vulnerability_workflow(target_path: str) -> str:
     A workflow prompt that instructs the LLM to analyze code and validate the hypothesis rigorously.
     """
     return f"""
-    You are a rigorous Security Auditor. Your task is to analyze the source code or binary at `{target_path}`.
-    
+    You are a Rigorous Security Auditor. Analyze the artifact at `{target_path}`.
+
     Follow this strict procedure:
-    1. **Analyze**: Read the file at `{target_path}` (if source code) or inspect its properties. Formulate a hypothesis: "I suspect a [TYPE] vulnerability because..."
-    2. **Validate**: You MUST call the tool `validate_vulnerability` with the path and your suspected type to verify your hypothesis.
-       - Do NOT rely on your internal knowledge for the final verdict.
-    3. **Report**: Describe the results based on the tool's evidence and provide a detailed report. Your previous hypothesis is no longer relevant after validation. The tool's evidence is the only basis for your final report.
-       - If the tool is inconclusive: state clearly that automated validation failed. Do not guess. Just report the uncertainty.
+    1. **Hypothesis:** Use the `read_file` tool to read the content of `{target_path}`.
+       - If `read_file` fails, report the error to the user immediately.
+       - If you cannot read it, state clearly: "I cannot access the file content. 
+       - If you find a risk: Try to define which type of vulnerability it is. Try to find the function name in where the vulnerability is.
+    2. **Validation:** You MUST call `validate_vulnerability` to verify your hypothesis. Do NOT rely on your internal knowledge for the final verdict.
+       - `target_path`: Provide the exact same path `{target_path}`.
+       - `vulnerability_type`: Use one of these exact values if it matches your result: "stack_overflow", "heap_overflow", "format_string". Use "auto" only if you cannot determine the type of the vulnerabilites or if it doesn't match one of the mentioned values.
+       - `target_function`: Provide the specific function name identified in step 1.
+    3. **Report:** Base your final report **SOLELY** on the tool's response.
+       - If `is_vulnerable` is true: Explain the exploit path using the provided `evidence`. Your previous hypothesis is no longer relevant after validation. The tool's evidence is the only basis for your final report.
+       - If false: State that validation found no evidence. Do not speculate.
     """
-    # TODO: Nächster Schritt: LLM soll target_path und function_name zur Validierung mitgeben
 
 
 @mcp.tool()
 @audit_log("validate_vulnerability")
 def validate_vulnerability(
     target_path: str,
+    target_function: str = None,
     vulnerability_type: Literal[
         "stack_overflow", "heap_overflow", "format_string", "auto"
     ] = "auto",
@@ -39,22 +45,34 @@ def validate_vulnerability(
     Validates a vulnerability hypothesis using symbolic execution (angr).
     If 'auto' is selected, the tool automatically detects the vulnerability type
     and runs all relevant solvers. Use this if you are unsure about the specific vulnerability class.
+    Currently available specific vulnerability classes are: "stack_overflow", "heap_overflow", "format_string".
 
     Args:
         target_path: Full path to the binary/source on the host system.
+        target_function: Optional specific function to analyze. If not provided, analysis starts from the entry point.
         vulnerability_type: The type of vulnerability to check for.
 
     Returns:
         A JSON object with analysis results.
     """
-    angr_analyzer = AngrAnalyzer(target_path)
-    result = angr_analyzer.run_analysis(vulnerability_type)
+    try:
+        angr_analyzer = AngrAnalyzer(target_path)
+        result = angr_analyzer.run_analysis(vulnerability_type, target_function)
 
-    if isinstance(result, str):
-        # Fallback: If the result is a string, we assume it's an error message or inconclusive result.
-        return {"error": result}
+        return result
 
-    return result
+    except FileNotFoundError as e:
+        return {
+            "error": "FileNotFound",
+            "message": str(e),
+            "suggestion": "Notify the user that the provided path is invalid.",
+        }
+    except Exception as e:
+        return {
+            "error": "AnalysisError",
+            "message": str(e),
+            "suggestion": "An error occurred during analysis. Check the error message for details. Notify the user that the analysis failed.",
+        }
 
 
 if __name__ == "__main__":

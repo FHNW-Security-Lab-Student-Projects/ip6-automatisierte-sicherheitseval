@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class AngrAnalyzer:
     def __init__(self, binary_path: str):
-        self.binary_path = self._resolve_binary_path(binary_path)
+        self.binary_path = binary_path
         self.project = None
         self.results: List[Dict[str, Any]] = []
 
@@ -46,6 +46,7 @@ class AngrAnalyzer:
 
     def load_binary(self):
         """Loads the binary into an angr project."""
+        self.binary_path = self._resolve_binary_path(self.binary_path)
         try:
             self.project = angr.Project(self.binary_path, auto_load_libs=False)
         except Exception as e:

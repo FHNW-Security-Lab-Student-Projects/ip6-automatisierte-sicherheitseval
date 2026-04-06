@@ -69,20 +69,16 @@ def main() -> None:
             }
         )
 
-    except FileNotFoundError as e:
-        logger.error(f"File not found during analysis: {str(e)}")
-        error_message = str(e)
     except Exception as e:
         logger.error(f"Analysis failed: {str(e)}")
-        error_message = str(e)
-    finally:
+
         # audit log entry for failure, capturing the error message for post-mortem analysis
         log_audit_event(
             {
                 "event": "validation_failed",
                 "source": "run_direct_analysis.py",
                 "status": "error",
-                "error_message": error_message,
+                "error_message": str(e),
             }
         )
         sys.exit(1)

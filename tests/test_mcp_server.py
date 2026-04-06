@@ -68,14 +68,15 @@ def test_validate_vulnerability_tool_end_to_end() -> None:
     assert isinstance(payload.get("analyzed_types"), list)
     assert payload["analyzed_types"]
 
-    findings = payload.get("findings")
-    assert isinstance(findings, list)
-    assert findings
+    evidence_list = payload.get("evidence")
+    assert isinstance(evidence_list, list)
+    assert evidence_list
 
-    first_finding = findings[0]
-    assert first_finding["type"] in {"stack_overflow", "heap_overflow", "format_string"}
-    assert isinstance(first_finding.get("evidence"), dict)
-    assert isinstance(first_finding.get("message"), str)
+    first_item = evidence_list[0]
+    assert "state_type" in first_item
+    assert "input_hex" in first_item
+
+    assert first_item.get("source_solver") == "stack_overflow"
 
 
 # TODO: Mehr Testfälle (spezifisch stack_overflow, heap_overflow, format_string) mit verschiedenen Binärdateien, um die Genauigkeit und Robustheit der Analyse zu überprüfen.

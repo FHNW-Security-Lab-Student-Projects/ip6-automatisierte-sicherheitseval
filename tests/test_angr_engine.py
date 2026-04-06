@@ -44,6 +44,9 @@ def _analyzer_with_solvers(monkeypatch, solvers: List[BaseSolver]) -> AngrAnalyz
 
 
 def test_run_analysis_auto_runs_all_solvers(monkeypatch) -> None:
+    """
+    Tests that when 'auto' is specified as the vulnerability type, the AngrAnalyzer runs all registered solvers in the order they are returned by _get_registered_solvers, collects their results, and correctly aggregates the overall vulnerability status and evidence.
+    """
     calls: List[str] = []
     solvers = [
         DummySolver(
@@ -52,7 +55,7 @@ def test_run_analysis_auto_runs_all_solvers(monkeypatch) -> None:
             {
                 "is_vulnerable": False,
                 "type": "stack_overflow",
-                "evidence": {},
+                "evidence": [],
                 "message": "No stack.",
             },
         ),
@@ -62,7 +65,13 @@ def test_run_analysis_auto_runs_all_solvers(monkeypatch) -> None:
             {
                 "is_vulnerable": True,
                 "type": "heap_overflow",
-                "evidence": {"path": "p1"},
+                "evidence": [
+                    {
+                        "state_type": "Unconstrained",
+                        "input_hex": "deadbeef",
+                        "description": "Heap overflow state detected.",
+                    }
+                ],
                 "message": "Heap found.",
             },
         ),
@@ -75,12 +84,20 @@ def test_run_analysis_auto_runs_all_solvers(monkeypatch) -> None:
     assert result["requested_type"] == "auto"
     assert result["analyzed_types"] == ["stack_overflow", "heap_overflow"]
     assert result["is_vulnerable"] is True
-    assert len(result["findings"]) == 2
+    evidence = result.get("evidence", [])
+    assert len(evidence) == 1
+    assert evidence[0]["state_type"] == "Unconstrained"
+    assert evidence[0]["input_hex"] == "deadbeef"
+    assert evidence[0]["description"] == "Heap overflow state detected."
+    assert "Heap found." in result["messages"][1]
 
 
 def test_run_analysis_specific_type_stops_on_first_matching_positive(
     monkeypatch,
 ) -> None:
+    """
+    Tests that if a specific vulnerability type is requested and the first matching solver returns a positive result (vulnerable), the analyzer stops running further solvers in the execution plan, as the requested vulnerability type has already been confirmed, ensuring efficient analysis without unnecessary solver executions.
+    """
     calls: List[str] = []
     solvers = [
         DummySolver("stack_overflow", calls),
@@ -90,7 +107,7 @@ def test_run_analysis_specific_type_stops_on_first_matching_positive(
             {
                 "is_vulnerable": True,
                 "type": "heap_overflow",
-                "evidence": {"path": "p2"},
+                "evidence": [{"state_type": "Unconstrained"}],
                 "message": "Heap found.",
             },
         ),
@@ -104,12 +121,14 @@ def test_run_analysis_specific_type_stops_on_first_matching_positive(
     assert result["analyzed_types"] == ["heap_overflow"]
     assert calls == ["heap_overflow"]
     assert result["is_vulnerable"] is True
-    assert len(result["findings"]) == 1
 
 
 def test_run_analysis_specific_type_continues_when_first_matching_negative(
     monkeypatch,
 ) -> None:
+    """
+    Tests that if a specific vulnerability type is requested and the first matching solver returns a negative result (not vulnerable), the analyzer continues to run the remaining solvers in the execution plan to ensure comprehensive analysis, rather than stopping after the first match.
+    """
     calls: List[str] = []
     solvers = [
         DummySolver("stack_overflow", calls),
@@ -119,7 +138,7 @@ def test_run_analysis_specific_type_continues_when_first_matching_negative(
             {
                 "is_vulnerable": False,
                 "type": "heap_overflow",
-                "evidence": {},
+                "evidence": [],
                 "message": "No heap.",
             },
         ),
@@ -129,7 +148,7 @@ def test_run_analysis_specific_type_continues_when_first_matching_negative(
             {
                 "is_vulnerable": True,
                 "type": "format_string",
-                "evidence": {"offset": 12},
+                "evidence": [{"state_type": "Errored"}],
                 "message": "Fmt found.",
             },
         ),
@@ -140,10 +159,18 @@ def test_run_analysis_specific_type_continues_when_first_matching_negative(
 
     assert calls == ["heap_overflow", "stack_overflow", "format_string"]
     assert result["is_vulnerable"] is True
-    assert len(result["findings"]) == 3
+    assert result["evidence"][0]["state_type"] == "Errored"
+    assert result["analyzed_types"] == [
+        "heap_overflow",
+        "stack_overflow",
+        "format_string",
+    ]
 
 
 def test_run_analysis_collects_solver_error_and_continues(monkeypatch) -> None:
+    """
+    Tests that if a solver raises an unexpected exception during its solve method, the analyzer catches the error, records it in the messages, and continues running the remaining solvers instead of crashing or halting the analysis.
+    """
     calls: List[str] = []
     solvers = [
         DummySolver("stack_overflow", calls, error=RuntimeError("boom")),
@@ -155,12 +182,14 @@ def test_run_analysis_collects_solver_error_and_continues(monkeypatch) -> None:
 
     assert calls == ["stack_overflow", "heap_overflow"]
     assert result["is_vulnerable"] is False
-    assert result["findings"][0]["type"] == "stack_overflow"
-    assert "boom" in result["findings"][0]["error"]
-    assert result["findings"][1]["type"] == "heap_overflow"
+    assert result["analyzed_types"] == ["stack_overflow", "heap_overflow"]
+    assert "boom" in result["messages"][0]
 
 
 def test_run_analysis_unknown_type_falls_back_to_auto(monkeypatch) -> None:
+    """
+    Tests that if an unknown vulnerability type is requested, the analyzer falls back to running all registered solvers (auto behavior) instead of failing or returning no results.
+    """
     calls: List[str] = []
     solvers = [
         DummySolver("stack_overflow", calls),
@@ -173,7 +202,6 @@ def test_run_analysis_unknown_type_falls_back_to_auto(monkeypatch) -> None:
     assert result["requested_type"] == "totally_unknown_type"
     assert calls == ["stack_overflow", "heap_overflow"]
     assert result["analyzed_types"] == ["stack_overflow", "heap_overflow"]
-    assert len(result["findings"]) == 2
 
 
 def test_run_analysis_passes_target_function_to_solver(monkeypatch) -> None:

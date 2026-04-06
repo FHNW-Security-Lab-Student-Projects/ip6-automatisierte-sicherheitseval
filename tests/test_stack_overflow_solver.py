@@ -32,10 +32,6 @@ class TestStackOverflowSolver:
         assert result["is_vulnerable"] is True
         assert result["type"] == "stack_overflow"
 
-        # Check if evidence contains a payload
-        evidence = result.get("evidence", {})
-        assert evidence.get("count", 0) > 0 and evidence.get("findings", [])
-
     def test_no_overflow_safe_binary(self, solver, safe_project):
         """
         Tests if the StackOverflowSolver correctly identifies that there is no stack overflow vulnerability in a known safe binary.
@@ -50,6 +46,8 @@ class TestStackOverflowSolver:
         # Message Check
         assert "No stack overflow" in result["message"]
 
+        assert result["evidence"] == []
+
     def test_result_structure(self, solver, vuln_project):
         """
         verifies that the result returned by the StackOverflowSolver contains all required keys and has the correct structure, regardless of whether a vulnerability was found or not.
@@ -59,7 +57,6 @@ class TestStackOverflowSolver:
         required_keys = [
             "is_vulnerable",
             "type",
-            "mode",
             "target_function",
             "evidence",
             "message",
@@ -68,9 +65,10 @@ class TestStackOverflowSolver:
             assert key in result, f"Missing key: {key}"
 
         # Check structure of 'evidence' key
-        assert isinstance(result["evidence"], dict)
-        assert "count" in result["evidence"]
-        assert "findings" in result["evidence"]
+        evidence = result.get("evidence", [])
+        assert "state_type" in evidence[0]
+        assert "input_hex" in evidence[0]
+        assert "description" in evidence[0]
 
     def test_stack_overflow_with_target_function(self, solver, vuln_project):
         """
@@ -85,8 +83,8 @@ class TestStackOverflowSolver:
         assert "vulnerable_function" in result.get("message", "")
 
         # Evidence should be present
-        evidence = result.get("evidence", {})
-        assert evidence.get("findings", [])
+        evidence = result.get("evidence", [])
+        assert "state_type" in evidence[0]
 
     def test_solver_with_nonexistent_function(self, solver, vuln_project):
         """

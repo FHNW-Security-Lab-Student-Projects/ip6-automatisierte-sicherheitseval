@@ -83,7 +83,7 @@ uv run pre-commit run --all-files
 Run full test suite:
 
 ```bash
-uv run pytest
+uv run pytest tests/
 ```
 
 ### Troubleshooting

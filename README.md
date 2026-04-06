@@ -47,13 +47,13 @@ For Claude to bei able to read and analyze your source-files, MCP-Server musst b
 Run the direct analysis script:
 
 ```bash
-uv run python scripts/run_direct_analysis.py <path_to_binary> <target_function>
+uv run python tests/mcp_client.py <path_to_binary> <target_function>
 ```
 
 Example:
 
 ```bash
-uv run python scripts/run_direct_analysis.py tests/fixtures/5_my_vuln vulnerable_function
+uv run python tests/mcp_client.py tests/fixtures/5_my_vuln.c vulnerable_function
 ```
 
 ## Developer

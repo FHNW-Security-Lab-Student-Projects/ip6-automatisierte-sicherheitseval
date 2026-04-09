@@ -81,7 +81,10 @@ class AngrAnalyzer:
         )  # run requested type first, then the rest for comprehensive analysis
 
     def run_analysis(
-        self, vuln_type: str = "auto", target_function: str = None
+        self,
+        vuln_type: str = "auto",
+        target_function: str = None,
+        function_args: List[Any] = None,
     ) -> Dict[str, Any]:
         """
         Executes the analysis workflow:
@@ -106,7 +109,7 @@ class AngrAnalyzer:
         for index, solver in enumerate(execution_plan):
             master_result["analyzed_types"].append(solver.vulnerability_type)
             try:
-                result = solver.solve(self.project, target_function)
+                result = solver.solve(self.project, target_function, function_args)
 
                 if result.get("is_vulnerable"):
                     master_result["is_vulnerable"] = True

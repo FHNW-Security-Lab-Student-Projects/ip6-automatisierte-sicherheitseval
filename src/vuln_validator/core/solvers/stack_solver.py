@@ -14,7 +14,10 @@ class StackOverflowSolver(BaseSolver):
         return "stack_overflow"
 
     def solve(
-        self, project: angr.Project, target_function: str = None
+        self,
+        project: angr.Project,
+        target_function: str = None,
+        function_args: List[Any] = None,
     ) -> Dict[str, Any]:
         logger.info("Running %s solver...", self.vulnerability_type)
 
@@ -42,9 +45,66 @@ class StackOverflowSolver(BaseSolver):
                     evidence=[],
                     message=f"Stack overflow analysis aborted: Target function '{target_function}' does not exist or has no symbol table entry.",
                 )
-            state = project.factory.call_state(addr, stdin=sym_input)
-            logger.info("Created call state for function: %s", target_function)
+
+            symbolic_inputs = []
+            offset_counter = 0x200
+
+            if function_args:
+                state = project.factory.call_state(addr, stdin=sym_input)
+                logger.info(
+                    "Function arguments provided for '%s': %s",
+                    target_function,
+                    function_args,
+                )
+                for i, arg in enumerate(function_args):
+                    logger.debug("Processing argument %d: %s", i, arg)
+                    if isinstance(arg, dict) and arg.get("type") == "symbolic":
+                        # Create a symbolic variable for this argument
+                        sym_var = claripy.BVS(
+                            f"arg_{i}", arg.get("size", 64) * 8
+                        )  # Default to 64-bit symbolic variable
+                        symbolic_inputs.append(sym_var)
+
+                        current_offset = offset_counter
+                        buffer_addr = state.solver.eval(state.regs.rsp) - current_offset
+                        offset_counter += (
+                            arg.get("size", 64) * 8
+                        )  # Increment offset for next argument
+
+                        state.memory.store(buffer_addr, sym_var)
+
+                        regs = [
+                            "rdi",
+                            "rsi",
+                            "rdx",
+                            "rcx",
+                            "r8",
+                            "r9",
+                        ]  # x86-64 calling convention
+                        if i < len(regs):
+                            setattr(state.regs, regs[i], buffer_addr)
+                        else:
+                            logger.warning(
+                                "More than 6 arguments provided. Additional arguments beyond the 6th are not supported in this implementation."
+                            )
+                    else:
+                        regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
+                        if i < len(regs):
+                            setattr(state.regs, regs[i], arg)
+                        # Treat as concrete value
+
+                logger.info(
+                    "Created call state for function '%s' with symbolic arguments: %s",
+                    target_function,
+                    symbolic_inputs,
+                )
+            else:
+                # No function arguments provided, create a call state without arguments
+                state = project.factory.call_state(addr, stdin=sym_input)
+                logger.info("Created call state for function: %s", target_function)
+
         else:
+            # no target function provided, start from entry point
             state = project.factory.entry_state(stdin=sym_input)
             logger.info("Creating entry state for the binary.")
 
@@ -55,22 +115,38 @@ class StackOverflowSolver(BaseSolver):
         found_vuln = False
         evidence_list = []
 
-        def extract_details(state, state_type):
+        def extract_details(
+            state, state_type
+        ):  # state_type is either "errored" or "unconstrained"
             details = {
                 "state_type": state_type,
-                "input_hex": None,
+                "input_hex": {},
                 "description": f"{state_type.capitalize()} state with symbolic RIP detected.",
             }
-            try:
-                poc = state.solver.eval(sym_input, cast_to=bytes)
-                details["input_hex"] = poc.hex()
-            except Exception as e:
-                logger.warning(
-                    "Failed to extract input from %s state: %s", state_type, str(e)
-                )
-                details["input_hex"] = "Extraction failed"
+            if target_function and symbolic_inputs:
+                for idx, sym_arg in enumerate(symbolic_inputs):
+                    try:
+                        val = state.solver.eval(sym_arg, cast_to=bytes)
+                        details["input_hex"][f"arg_{idx}"] = val.hex()
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to extract arg %d from %s state: %s",
+                            idx,
+                            state_type,
+                            e,
+                        )
+                        details["input_hex"][f"arg_{idx}"] = "Extraction failed"
+            else:
+                try:
+                    poc = state.solver.eval(sym_input, cast_to=bytes)
+                    details["input_hex"]["stdin"] = poc.hex()
+                except Exception as e:
+                    logger.warning(
+                        "Failed to extract input from %s state: %s", state_type, str(e)
+                    )
+                    details["input_hex"]["stdin"] = "Extraction failed"
 
-            logger.debug("Extracted details from %s state: %s", state_type, details)
+            logger.info("Extracted details from %s state: %s", state_type, details)
             return details
 
         states_to_check = [

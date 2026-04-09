@@ -14,12 +14,14 @@ class TestStackOverflowSolver:
     @pytest.fixture
     def vuln_project(self):
         """Loads the vulnerable test binary."""
-        return angr.Project("tests/fixtures/5_my_vuln", auto_load_libs=False)
+        return angr.Project(
+            "tests/fixtures/stack_overflow/gets_local/bin", auto_load_libs=False
+        )
 
     @pytest.fixture
     def safe_project(self):
         """Loads a safe test binary."""
-        return angr.Project("tests/fixtures/safe_binary", auto_load_libs=False)
+        return angr.Project("tests/fixtures/common/safe_binary", auto_load_libs=False)
 
     def test_stack_overflow_detected_stdin(self, solver, vuln_project):
         """

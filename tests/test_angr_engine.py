@@ -26,9 +26,10 @@ class DummySolver(BaseSolver):
     def vulnerability_type(self) -> str:
         return self._vuln_type
 
-    def solve(self, project, target_function) -> Dict[str, Any]:
+    def solve(self, project, target_function, function_args) -> Dict[str, Any]:
         self._calls.append(self._vuln_type)
         self._received_target = target_function
+        self._received_args = function_args
         if self._error:
             raise self._error
         return self._result

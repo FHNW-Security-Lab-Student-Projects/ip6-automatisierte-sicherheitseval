@@ -72,12 +72,10 @@ async def run_analysis_cli(
 def main():
     setup_logging()
     logger = logging.getLogger("vuln_validator.run_direct_analysis")
+    default_binary_path = "tests/fixtures/stack_overflow/gets_local/bin"
     if len(sys.argv) < 2:
-        logger.warning(
-            "No code path provided. Using default: tests/fixtures/5_my_vuln.c"
-        )
+        logger.warning("No code path provided. Using default: %s", default_binary_path)
 
-    default_binary_path = "tests/fixtures/5_my_vuln.c"
     binary_path = sys.argv[1] if len(sys.argv) > 1 else default_binary_path
     target_function = sys.argv[2] if len(sys.argv) > 2 else None
     function_args = json.loads(sys.argv[3]) if len(sys.argv) > 3 else None

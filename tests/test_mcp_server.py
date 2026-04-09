@@ -7,7 +7,7 @@ import anyio
 
 from vuln_validator.mcp_server import mcp
 
-FIXTURE_BINARY = Path(__file__).parent / "fixtures" / "5_my_vuln"
+FIXTURE_BINARY = Path("tests/fixtures/stack_overflow/gets_local/bin")
 
 
 def test_mcp_registration_exposes_expected_tool_and_prompt() -> None:
@@ -46,7 +46,7 @@ def test_mcp_prompt_renders_target_path() -> None:
     prompt_text = anyio.run(_render_prompt)
 
     assert str(FIXTURE_BINARY) in prompt_text
-    assert "fixtures/5_my_vuln" in prompt_text
+    assert "tests/fixtures/stack_overflow/gets_local/bin" in prompt_text
 
 
 def test_validate_vulnerability_tool_end_to_end() -> None:
@@ -116,7 +116,7 @@ def test_validate_vulnerability_tool_with_source_code_but_no_binary() -> None:
     """
     This test checks that the `validate_vulnerability` tool handles the case of a source code file without a corresponding binary gracefully, returning an appropriate error message.
     """
-    source_code_path = Path(__file__).parent / "fixtures" / "5_my_vuln_without_binary.c"
+    source_code_path = Path("tests/fixtures/error_cases/missing_binary.c")
     assert source_code_path.exists(), f"Missing fixture source code: {source_code_path}"
 
     async def _call_tool():

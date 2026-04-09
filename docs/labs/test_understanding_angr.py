@@ -4,14 +4,18 @@ import claripy
 
 def test_einfache_loesung():
 
-    proj = angr.Project("tests/fixtures/2_buffer_overflow", auto_load_libs=False)
+    proj = angr.Project(
+        "tests/fixtures/legacy_scripts/2_buffer_overflow", auto_load_libs=False
+    )
 
     assert proj is not None
     assert proj.arch.name == "AMD64"
 
 
 def test_initial_state_rip():
-    proj = angr.Project("tests/fixtures/2_buffer_overflow", auto_load_libs=False)
+    proj = angr.Project(
+        "tests/fixtures/legacy_scripts/2_buffer_overflow", auto_load_libs=False
+    )
 
     state = proj.factory.entry_state()
 
@@ -21,7 +25,9 @@ def test_initial_state_rip():
 
 
 def test_symbolic_register():
-    proj = angr.Project("tests/fixtures/2_buffer_overflow", auto_load_libs=False)
+    proj = angr.Project(
+        "tests/fixtures/legacy_scripts/2_buffer_overflow", auto_load_libs=False
+    )
 
     sym_input = claripy.BVS("my_var", 64)
     state = proj.factory.entry_state()
@@ -33,7 +39,9 @@ def test_symbolic_register():
 
 
 def test_constraint_logic():
-    proj = angr.Project("tests/fixtures/2_buffer_overflow", auto_load_libs=False)
+    proj = angr.Project(
+        "tests/fixtures/legacy_scripts/2_buffer_overflow", auto_load_libs=False
+    )
 
     sym_input = claripy.BVS("my_var", 64)
     state = proj.factory.entry_state()
@@ -51,7 +59,9 @@ def test_constraint_logic():
 
 
 def test_symbolic_memory_operation():
-    proj = angr.Project("tests/fixtures/2_buffer_overflow", auto_load_libs=False)
+    proj = angr.Project(
+        "tests/fixtures/legacy_scripts/2_buffer_overflow", auto_load_libs=False
+    )
 
     state = proj.factory.entry_state()
 
@@ -75,7 +85,9 @@ def test_symbolic_memory_operation():
 
 
 def test_single_step_execution():
-    proj = angr.Project("tests/fixtures/2_buffer_overflow", auto_load_libs=False)
+    proj = angr.Project(
+        "tests/fixtures/legacy_scripts/2_buffer_overflow", auto_load_libs=False
+    )
     state = proj.factory.entry_state()
 
     sym_val = claripy.BVS("my_var", 64)
@@ -93,7 +105,9 @@ def test_single_step_execution():
 
 
 def test_simulation_manager_run():
-    proj = angr.Project("tests/fixtures/2_buffer_overflow", auto_load_libs=False)
+    proj = angr.Project(
+        "tests/fixtures/legacy_scripts/2_buffer_overflow", auto_load_libs=False
+    )
     state = proj.factory.entry_state()
 
     simgr = proj.factory.simulation_manager(state)
@@ -111,7 +125,9 @@ def test_simulation_manager_run():
 
 
 def test_crash_detection():
-    proj = angr.Project("tests/fixtures/2_buffer_overflow", auto_load_libs=False)
+    proj = angr.Project(
+        "tests/fixtures/legacy_scripts/2_buffer_overflow", auto_load_libs=False
+    )
     state = proj.factory.entry_state()
 
     simgr = proj.factory.simulation_manager(state)
@@ -127,7 +143,9 @@ def test_crash_detection():
 
 
 def test_symbolic_rip_detection():
-    proj = angr.Project("tests/fixtures/2_buffer_overflow", auto_load_libs=False)
+    proj = angr.Project(
+        "tests/fixtures/legacy_scripts/2_buffer_overflow", auto_load_libs=False
+    )
     state = proj.factory.entry_state()
 
     simgr = proj.factory.simulation_manager(state)
@@ -142,7 +160,9 @@ def test_symbolic_rip_detection():
 
 
 def test_stdin_injection():
-    proj = angr.Project("tests/fixtures/2_buffer_overflow", auto_load_libs=False)
+    proj = angr.Project(
+        "tests/fixtures/legacy_scripts/2_buffer_overflow", auto_load_libs=False
+    )
 
     symbolic_input = claripy.BVS("symbolic_input", 64 * 8)
 
@@ -159,7 +179,9 @@ def test_stdin_injection():
 
 
 def test_limited_run():
-    proj = angr.Project("tests/fixtures/2_buffer_overflow", auto_load_libs=False)
+    proj = angr.Project(
+        "tests/fixtures/legacy_scripts/2_buffer_overflow", auto_load_libs=False
+    )
     state = proj.factory.entry_state()
 
     simgr = proj.factory.simulation_manager(state)

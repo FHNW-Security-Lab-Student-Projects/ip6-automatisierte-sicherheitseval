@@ -48,3 +48,28 @@ def test_entry_state_addr_approach():
     assert len(simgr.active) == 0
     assert len(simgr.errored) == 0
     assert len(simgr.unconstrained) > 0
+
+
+def test_strcpy_with_valid_pointer():
+    proj = angr.Project("tests/fixtures/7_my_vuln", auto_load_libs=False)
+    if not proj.kb.functions:
+        proj.analyses.CFGFast()
+
+    vuln_addr = proj.kb.functions["copy_input"].addr
+
+    sym_content = claripy.BVS("input_content", 64 * 8)
+
+    state = proj.factory.call_state(vuln_addr)
+
+    buffer_addr = state.solver.eval(state.regs.rsp) - 0x200
+
+    state.memory.store(buffer_addr, sym_content)
+
+    state.regs.rdi = buffer_addr
+
+    simgr = proj.factory.simulation_manager(state)
+    simgr.run(n=50)
+
+    assert len(simgr.active) == 0
+    assert len(simgr.errored) == 0
+    assert len(simgr.unconstrained) > 0

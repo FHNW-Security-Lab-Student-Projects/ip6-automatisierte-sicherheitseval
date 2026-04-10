@@ -5,7 +5,11 @@ Vulnerability validation framework with an MCP server for AI assistants (like Cl
 ## Requirements
 - Python 3.13+
 - [uv](https://github.com/astral-sh/uv) package manager
-- Claude Desktop (optional, if you want MCP integration)
+- Node.js (needed for MCP-Filesystem-Server in Claude Desktop)
+    Windows: `scoop install nodejs-lts` or Installer from nodejs.org
+    Mac/Linux: `brew install node`
+- Claude Desktop (optional)
+
 
 ## Quick start
 1. Clone the repository.
@@ -22,34 +26,34 @@ uv run python -c "import vuln_validator; print('ok')"
 ```
 
 ## Claude Desktop integration (Windows)
-Open the Claude Desktop config file:
+For Claude to bei able to read and analyze your source-files, MCP-Server musst be configured.
 
-```bash
-code $env:AppData\Claude\claude_desktop_config.json
-```
+1. Open config file:
+   - Windows: Press Win + R, enter: %APPDATA%\Claude\claude_desktop_config.json
+   - Mac: ~/Library/Application Support/Claude/claude_desktop_config.json # TODO: Verify
 
-Copy the server block from `config/claude_desktop_config.example` and adjust only the project path.
-You can copy only the mcpServers section. The preferences section is optional and not required for VulnValidator.
+2. Copy the `mcpServers` block from `config/claude_desktop_config.example` and enter in `claude_desktop_config`. Replace both the project path and the path to your code files.<br>
+**Note**: You don't need to define exact path for code files but Claude Code will have access to all files in your provided path
 
-Restart Claude Desktop after saving the config.
+3. Restart Claude Desktop after saving the config.
 
-In Claude chat:
-1. Click +, then Connectors.
-2. Choose Add from VulnValidator.
-3. Select Find vulnerability workflow.
-4. Enter the target path and send.
+4. In Claude chat:
+   - Click +, then Connectors.
+   - Choose Add from VulnValidator.
+   - Select Find vulnerability workflow.
+   - Enter the target path and send.
 
 ## Local usage without Claude Desktop
 Run the direct analysis script:
 
 ```bash
-uv run python scripts/run_direct_analysis.py <path_to_binary>
+uv run python tests/mcp_client.py <path_to_binary> <target_function>
 ```
 
 Example:
 
 ```bash
-uv run python scripts/run_direct_analysis.py tests/fixtures/2_buffer_overflow
+uv run python tests/mcp_client.py tests/fixtures/5_my_vuln.c vulnerable_function
 ```
 
 ## Developer
@@ -79,9 +83,22 @@ uv run pre-commit run --all-files
 Run full test suite:
 
 ```bash
-uv run pytest
+uv run pytest tests/
 ```
 
 ### Troubleshooting
 - Error: ModuleNotFoundError: No module named vuln_validator
-   - Run uv sync in the repository root.
+   - Run `uv sync` in the repository root.
+
+Get last audit-log:
+```bash
+Get-Content logs/audit_log.json -Tail 1 | ConvertFrom-Json
+# Linux/Mac
+tail -n 1 logs/audit_log.json | jq
+```
+Get all audit-logs:
+```bash
+Get-Content logs/audit_log.json | ForEach-Object { ConvertFrom-Json $_ }
+# Linux/Mac
+cat logs/audit_log.json | jq -s '.'
+```

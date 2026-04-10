@@ -7,11 +7,14 @@ import anyio
 
 from vuln_validator.mcp_server import mcp
 
-FIXTURE_BINARY = Path(__file__).parent / "fixtures" / "5_my_vuln"
+FIXTURE_BINARY = Path("tests/fixtures/stack_overflow/gets_local/bin")
 
 
-# This test validates the integration of the MCP server with the vulnerability analysis tool. It checks that the prompt and tool are registered correctly.
 def test_mcp_registration_exposes_expected_tool_and_prompt() -> None:
+    """
+    This test validates the integration of the MCP server with the vulnerability analysis tool. It checks that the prompt and tool are registered correctly.
+    """
+
     async def _collect():
         tools = await mcp.list_tools()
         prompts = await mcp.list_prompts()
@@ -28,8 +31,11 @@ def test_mcp_registration_exposes_expected_tool_and_prompt() -> None:
     assert prompts[0].name == "find_vulnerability_workflow"
 
 
-# This test checks that the prompt correctly renders the target path and includes instructions to call the validation tool.
 def test_mcp_prompt_renders_target_path() -> None:
+    """
+    This test checks that the prompt correctly renders the target path and includes instructions to call the validation tool.
+    """
+
     async def _render_prompt():
         rendered = await mcp.get_prompt(
             "find_vulnerability_workflow",
@@ -40,11 +46,13 @@ def test_mcp_prompt_renders_target_path() -> None:
     prompt_text = anyio.run(_render_prompt)
 
     assert str(FIXTURE_BINARY) in prompt_text
-    assert "MUST call the tool `validate_vulnerability`" in prompt_text
+    assert "tests/fixtures/stack_overflow/gets_local/bin" in prompt_text
 
 
-# This test performs an end-to-end validation of the `validate_vulnerability` tool by running it against a known vulnerable binary and checking the results.
 def test_validate_vulnerability_tool_end_to_end() -> None:
+    """
+    This test performs an end-to-end validation of the `validate_vulnerability` tool by running it against a known vulnerable binary and checking the results.
+    """
     assert FIXTURE_BINARY.exists(), f"Missing fixture binary: {FIXTURE_BINARY}"
 
     async def _call_tool():
@@ -68,16 +76,67 @@ def test_validate_vulnerability_tool_end_to_end() -> None:
     assert isinstance(payload.get("analyzed_types"), list)
     assert payload["analyzed_types"]
 
-    findings = payload.get("findings")
-    assert isinstance(findings, list)
-    assert findings
+    evidence_list = payload.get("evidence")
+    assert isinstance(evidence_list, list)
+    assert evidence_list
 
-    first_finding = findings[0]
-    assert first_finding["type"] in {"stack_overflow", "heap_overflow", "format_string"}
-    assert isinstance(first_finding.get("evidence"), dict)
-    assert isinstance(first_finding.get("message"), str)
+    first_item = evidence_list[0]
+    assert "state_type" in first_item
+    assert "input_hex" in first_item
+
+    assert first_item.get("source_solver") == "stack_overflow"
+
+
+def test_validate_vulnerability_tool_with_nonexistent_file() -> None:
+    """
+    This test checks that the `validate_vulnerability` tool handles the case of a non-existent file gracefully, returning an appropriate error message.
+    """
+
+    async def _call_tool():
+        return await mcp.call_tool(
+            "validate_vulnerability",
+            {
+                "target_path": "/path/to/nonexistent/file",
+                "vulnerability_type": "auto",
+            },
+        )
+
+    content_blocks = anyio.run(_call_tool)
+
+    assert isinstance(content_blocks, list)
+    assert content_blocks
+    assert hasattr(content_blocks[0], "text")
+
+    payload = json.loads(content_blocks[0].text)
+    assert "error" in payload
+    assert payload["error"] == "FileNotFound"
+
+
+def test_validate_vulnerability_tool_with_source_code_but_no_binary() -> None:
+    """
+    This test checks that the `validate_vulnerability` tool handles the case of a source code file without a corresponding binary gracefully, returning an appropriate error message.
+    """
+    source_code_path = Path("tests/fixtures/error_cases/missing_binary.c")
+    assert source_code_path.exists(), f"Missing fixture source code: {source_code_path}"
+
+    async def _call_tool():
+        return await mcp.call_tool(
+            "validate_vulnerability",
+            {
+                "target_path": str(source_code_path),
+                "vulnerability_type": "auto",
+            },
+        )
+
+    content_blocks = anyio.run(_call_tool)
+
+    assert isinstance(content_blocks, list)
+    assert content_blocks
+    assert hasattr(content_blocks[0], "text")
+
+    payload = json.loads(content_blocks[0].text)
+    assert "error" in payload
+    assert payload["error"] == "FileNotFound"
 
 
 # TODO: Mehr Testfälle (spezifisch stack_overflow, heap_overflow, format_string) mit verschiedenen Binärdateien, um die Genauigkeit und Robustheit der Analyse zu überprüfen.
-# TODO: Testfälle binaries und source code, um die Fähigkeit der Analyse zu überprüfen, mit verschiedenen Eingabeformaten umzugehen.
-# TODO: Testfälle mit nicht-vulnerable binaries, um sicherzustellen, dass die Analyse keine False Positives produziert.

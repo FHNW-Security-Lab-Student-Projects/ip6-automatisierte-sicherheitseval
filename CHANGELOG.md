@@ -1,3 +1,46 @@
+## [0.2.0] - 2026-04-10
+
+### 🚀 Features
+
+- Add audit-logs
+- Analyze at target_function
+- Edit structure of result
+- Extend return json
+- Claude access to read code files
+- Add mcp-client
+- Call target_function with or without arguments
+
+### 🐛 Bug Fixes
+
+- Make sure logs folder exists
+
+### 🚜 Refactor
+
+- Build result method
+
+### 📚 Documentation
+
+- Update Readme (audit-log commands)
+- Update Readme (nodejs)
+- Update Readme for mcp-client
+
+### 🧪 Testing
+
+- Add test_audit_logger
+- Add tests for StackOverflowSolver
+- Tests for understanding angr call function
+- Add tests for target_function
+- Add and edit tests for extended structure of result
+- Edit tests for extended return json
+- Add more tests for exception handling
+- Add tests for solver with function arguments
+
+### ⚙️ Miscellaneous Tasks
+
+- Remove unused files and cleanup folder structure
+- Tests for understanding args
+- Cleanup test folder.
+- *(merge)* Merge pull request #2 from FHNW-Security-Lab-Student-Projects/dev
 ## [0.1.0] - 2026-03-30
 
 ### 🚀 Features
@@ -52,3 +95,4 @@
 - Prettify Readme
 - Add more example code
 - Initialize repository with MCP server, solver baseline, and CI pipeline
+- Update changelog

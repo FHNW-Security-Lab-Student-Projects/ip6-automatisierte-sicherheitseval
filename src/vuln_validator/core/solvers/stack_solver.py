@@ -160,11 +160,6 @@ class StackOverflowSolver(BaseSolver):
                     vuln_data = extract_details(state, state_type)
                     evidence_list.append(vuln_data)
                     found_vuln = True
-                    logger.info(
-                        "%s state with symbolic RIP detected: %s",
-                        state_type.capitalize(),
-                        vuln_data,
-                    )
 
         if found_vuln:
             message = (

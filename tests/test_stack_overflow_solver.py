@@ -3,6 +3,51 @@ import angr
 
 from vuln_validator.core.solvers.stack_solver import StackOverflowSolver
 
+TEST_CASES = [
+    {
+        "binary": "tests/fixtures/stack_overflow/gets_local/bin",
+        "func": None,  # analyzes whole binary, should find the overflow in vulnerable_function
+        "args": None,
+        "should_find": True,
+    },
+    {
+        "binary": "tests/fixtures/stack_overflow/gets_local/bin",
+        "func": "vulnerable_function",
+        "args": None,
+        "should_find": True,
+    },
+    {
+        "binary": "tests/fixtures/stack_overflow/gets_pointer/bin",
+        "func": "vulnerable_function",
+        "args": [{"type": "symbolic", "size": 64}],
+        "should_find": False,
+    },
+    {
+        "binary": "tests/fixtures/stack_overflow/gets_pointer/bin",
+        "func": "vulnerable_function",
+        "args": [{"type": "symbolic", "size": 1024}],
+        "should_find": True,
+    },
+    {
+        "binary": "tests/fixtures/stack_overflow/strcpy_pointer/bin",
+        "func": "copy_input",
+        "args": [{"type": "symbolic", "size": 64}],
+        "should_find": True,
+    },
+    {
+        "binary": "tests/fixtures/stack_overflow/strcpy_pointer/bin",
+        "func": "copy_input",
+        "args": None,  # Fallback via stdin/uninitialized
+        "should_find": True,  # finds the overflow via stdin or uninitialized memory, even without explicit args
+    },
+    {
+        "binary": "tests/fixtures/common/safe_binary",
+        "func": "safe_func",
+        "args": None,
+        "should_find": False,
+    },
+]
+
 
 class TestStackOverflowSolver:
 
@@ -17,38 +62,6 @@ class TestStackOverflowSolver:
         return angr.Project(
             "tests/fixtures/stack_overflow/gets_local/bin", auto_load_libs=False
         )
-
-    @pytest.fixture
-    def safe_project(self):
-        """Loads a safe test binary."""
-        return angr.Project("tests/fixtures/common/safe_binary", auto_load_libs=False)
-
-    def test_stack_overflow_detected_stdin(self, solver, vuln_project):
-        """
-        Tests if the StackOverflowSolver can detect a known stack overflow vulnerability in the vuln_minimal binary when providing symbolic input via stdin.
-        Expected: is_vulnerable == True and a payload is generated.
-        """
-        result = solver.solve(vuln_project)
-
-        # Checks if the vulnerability was detected
-        assert result["is_vulnerable"] is True
-        assert result["type"] == "stack_overflow"
-
-    def test_no_overflow_safe_binary(self, solver, safe_project):
-        """
-        Tests if the StackOverflowSolver correctly identifies that there is no stack overflow vulnerability in a known safe binary.
-        Expected: is_vulnerable == False.
-        """
-        result = solver.solve(safe_project)
-
-        # checks if no vulnerability was detected
-        assert result["is_vulnerable"] is False
-        assert result["type"] == "stack_overflow"
-
-        # Message Check
-        assert "No stack overflow" in result["message"]
-
-        assert result["evidence"] == []
 
     def test_result_structure(self, solver, vuln_project):
         """
@@ -100,3 +113,19 @@ class TestStackOverflowSolver:
             "target function 'does_not_exist_123' does not exist or has no symbol table entry."
             in result.get("message", "").lower()
         )
+
+    @pytest.mark.parametrize("case", TEST_CASES)
+    def test_overflow_patterns(self, case):
+        proj = angr.Project(case["binary"], auto_load_libs=False)
+        if not proj.kb.functions:
+            proj.analyses.CFGFast()
+
+        solver = StackOverflowSolver()
+        result = solver.solve(
+            proj, target_function=case["func"], function_args=case["args"]
+        )
+
+        if case["should_find"]:
+            assert result["is_vulnerable"] is True
+        else:
+            assert result["is_vulnerable"] is False

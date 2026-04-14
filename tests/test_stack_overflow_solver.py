@@ -19,7 +19,9 @@ TEST_CASES = [
     {
         "binary": "tests/fixtures/stack_overflow/gets_pointer",
         "func": "vulnerable_function",
-        "args": [{"type": "symbolic", "size": 64}],
+        "args": [
+            {"type": "symbolic", "size": 64}
+        ],  # TODO: Should try with symbolic args of different sizes
         "should_find": False,
     },
     {
@@ -41,9 +43,38 @@ TEST_CASES = [
         "should_find": True,  # finds the overflow via stdin or uninitialized memory, even without explicit args
     },
     {
+        "binary": "tests/fixtures/stack_overflow/strcpy_pointer",
+        "func": "copy_input",
+        "args": [
+            {"type": "symbolic", "size": 2}
+        ],  # TODO: finds still overflow because "SimProcedure-Pessismism"
+        "should_find": True,
+    },
+    # --- Safe binaries ---
+    {
         "binary": "tests/fixtures/common/safe_binary",
         "func": "safe_func",
         "args": None,
+        "should_find": False,
+    },
+    {
+        "name": "safe_strcpy: manual length check",
+        "binary": "tests/fixtures/common/safe_strcpy",
+        "func": "safe_func",
+        "args": [{"type": "symbolic", "size": 100}],
+        "should_find": False,
+    },
+    {
+        "binary": "tests/fixtures/common/safe_strncpy",
+        "func": "safe_func",
+        "args": [{"type": "symbolic", "size": 100}],
+        "should_find": False,
+    },
+    {
+        "name": "false_positive_trap: complex logic (loop)",
+        "binary": "tests/fixtures/common/false_positiv_trap",
+        "func": "vulnerable_looking_func",
+        "args": [{"type": "symbolic", "size": 100}],
         "should_find": False,
     },
 ]

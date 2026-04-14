@@ -72,7 +72,7 @@ async def run_analysis_cli(
 def main():
     setup_logging()
     logger = logging.getLogger("vuln_validator.run_direct_analysis")
-    default_binary_path = "tests/fixtures/stack_overflow/gets_local/bin"
+    default_binary_path = "tests/fixtures/stack_overflow/gets_local"
     if len(sys.argv) < 2:
         logger.warning("No code path provided. Using default: %s", default_binary_path)
 

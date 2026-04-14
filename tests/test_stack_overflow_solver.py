@@ -5,37 +5,37 @@ from vuln_validator.core.solvers.stack_solver import StackOverflowSolver
 
 TEST_CASES = [
     {
-        "binary": "tests/fixtures/stack_overflow/gets_local/bin",
+        "binary": "tests/fixtures/stack_overflow/gets_local",
         "func": None,  # analyzes whole binary, should find the overflow in vulnerable_function
         "args": None,
         "should_find": True,
     },
     {
-        "binary": "tests/fixtures/stack_overflow/gets_local/bin",
+        "binary": "tests/fixtures/stack_overflow/gets_local",
         "func": "vulnerable_function",
         "args": None,
         "should_find": True,
     },
     {
-        "binary": "tests/fixtures/stack_overflow/gets_pointer/bin",
+        "binary": "tests/fixtures/stack_overflow/gets_pointer",
         "func": "vulnerable_function",
         "args": [{"type": "symbolic", "size": 64}],
         "should_find": False,
     },
     {
-        "binary": "tests/fixtures/stack_overflow/gets_pointer/bin",
+        "binary": "tests/fixtures/stack_overflow/gets_pointer",
         "func": "vulnerable_function",
         "args": [{"type": "symbolic", "size": 1024}],
         "should_find": True,
     },
     {
-        "binary": "tests/fixtures/stack_overflow/strcpy_pointer/bin",
+        "binary": "tests/fixtures/stack_overflow/strcpy_pointer",
         "func": "copy_input",
         "args": [{"type": "symbolic", "size": 64}],
         "should_find": True,
     },
     {
-        "binary": "tests/fixtures/stack_overflow/strcpy_pointer/bin",
+        "binary": "tests/fixtures/stack_overflow/strcpy_pointer",
         "func": "copy_input",
         "args": None,  # Fallback via stdin/uninitialized
         "should_find": True,  # finds the overflow via stdin or uninitialized memory, even without explicit args
@@ -60,7 +60,7 @@ class TestStackOverflowSolver:
     def vuln_project(self):
         """Loads the vulnerable test binary."""
         return angr.Project(
-            "tests/fixtures/stack_overflow/gets_local/bin", auto_load_libs=False
+            "tests/fixtures/stack_overflow/gets_local", auto_load_libs=False
         )
 
     def test_result_structure(self, solver, vuln_project):

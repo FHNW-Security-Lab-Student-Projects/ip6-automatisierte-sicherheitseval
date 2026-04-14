@@ -4,7 +4,7 @@ import claripy
 
 def test_call_state_approach():
     proj = angr.Project(
-        "tests/fixtures/stack_overflow/gets_local/bin", auto_load_libs=False
+        "tests/fixtures/stack_overflow/gets_local", auto_load_libs=False
     )
 
     if not proj.kb.functions:
@@ -28,7 +28,7 @@ def test_call_state_approach():
 
 def test_entry_state_addr_approach():
     proj = angr.Project(
-        "tests/fixtures/stack_overflow/gets_local/bin", auto_load_libs=False
+        "tests/fixtures/stack_overflow/gets_local", auto_load_libs=False
     )
 
     if not proj.kb.functions:
@@ -56,7 +56,7 @@ def test_entry_state_addr_approach():
 
 def test_strcpy_with_valid_pointer():
     proj = angr.Project(
-        "tests/fixtures/stack_overflow/strcpy_pointer/bin", auto_load_libs=False
+        "tests/fixtures/stack_overflow/strcpy_pointer", auto_load_libs=False
     )
     if not proj.kb.functions:
         proj.analyses.CFGFast()

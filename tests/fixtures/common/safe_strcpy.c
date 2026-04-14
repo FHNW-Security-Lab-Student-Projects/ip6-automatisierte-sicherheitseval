@@ -1,4 +1,3 @@
-// tests/fixtures/common/safe_strcpy_manual.c
 #include <stdio.h>
 #include <string.h>
 

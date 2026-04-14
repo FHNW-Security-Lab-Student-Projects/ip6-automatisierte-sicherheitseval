@@ -30,7 +30,7 @@ def find_vulnerability_workflow(target_path: str) -> str:
        - `vulnerability_type`: Use one of these exact values if it matches your result: "stack_overflow", "heap_overflow", "format_string". Use "auto" only if you cannot determine the type of the vulnerabilites or if it doesn't match one of the mentioned values.
        - `target_function`: Provide the specific function name identified in step 1.
     3. **Report:** Base your final report **SOLELY** on the tool's response.
-       - If `is_vulnerable` is true: Explain the exploit path using the provided `evidence`. Your previous hypothesis is no longer relevant after validation. The tool's evidence is the only basis for your final report.
+       - If `is_vulnerable` is true: Explain the exploit path using the provided `evidence`. Show the evidence input-hex to the user. Your previous hypothesis is no longer relevant after validation. The tool's evidence is the only basis for your final report.
        - If false: State that validation found no evidence. Do not speculate.
 
     If you have read this prompt, respond with "Thank you for the instructions. I will follow the procedure step by step." and then proceed with your analysis.

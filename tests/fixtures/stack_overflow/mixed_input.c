@@ -1,4 +1,3 @@
-// tests/fixtures/stack_overflow/mixed_args/src.c
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

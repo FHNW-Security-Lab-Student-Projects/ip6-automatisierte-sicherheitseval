@@ -50,6 +50,25 @@ TEST_CASES = [
         ],  # TODO: finds still overflow because "SimProcedure-Pessismism"
         "should_find": True,
     },
+    {
+        "binary": "tests/fixtures/stack_overflow/mixed_input",
+        "func": "process_request",
+        "args": [
+            {"type": "symbolic", "size": 64},  # user_id
+            {"type": "symbolic", "size": 128},  # input_data
+            {"type": "symbolic", "size": 8},  # log_level
+        ],
+        "should_find": True,  # should find the overflow in input_data, even with the "noise" of the other symbolic args
+    },
+    {
+        "binary": "tests/fixtures/stack_overflow/two_args",
+        "func": "process_data",
+        "args": [
+            {"type": "symbolic", "size": 1024},  # arg1
+            {"type": "symbolic", "size": 64},  # arg2
+        ],
+        "should_find": True,
+    },
     # --- Safe binaries ---
     {
         "binary": "tests/fixtures/common/safe_binary",

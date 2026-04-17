@@ -21,12 +21,11 @@ class StackOverflowSolver(BaseSolver):
     ) -> Dict[str, Any]:
         logger.info("Running %s solver...", self.vulnerability_type)
 
-        symbolic_stdin = claripy.BVS("my_input", 256 * 8)
+        symbolic_stdin = claripy.BVS("my_input", 512 * 8)
+        symbolic_args = []
 
         if not project.kb.functions:
             project.analyses.CFGFast()
-
-        symbolic_args = []
 
         if target_function:
             try:
@@ -48,7 +47,7 @@ class StackOverflowSolver(BaseSolver):
                     message=f"Stack overflow analysis aborted: Target function '{target_function}' does not exist or has no symbol table entry.",
                 )
 
-            offset_counter = 0x200
+            current_offset = 0x80
 
             if function_args:
                 state = project.factory.call_state(addr, stdin=symbolic_stdin)
@@ -66,11 +65,10 @@ class StackOverflowSolver(BaseSolver):
                         )  # Default to 64-bit symbolic variable
                         symbolic_args.append(sym_var)
 
-                        current_offset = offset_counter
+                        current_offset += arg.get(
+                            "size", 64
+                        )  # Increment offset for argument
                         buffer_addr = state.solver.eval(state.regs.rsp) - current_offset
-                        offset_counter += (
-                            arg.get("size", 64) * 8
-                        )  # Increment offset for next argument
 
                         state.memory.store(buffer_addr, sym_var)
 

@@ -47,7 +47,7 @@ For Claude to bei able to read and analyze your source-files, MCP-Server musst b
 Run the direct analysis script:
 
 ```bash
-uv run python tests/mcp_client.py <path_to_binary> <target_function> <[{"type": "symbolic", "size": <num>}, <num>, ...]
+uv run python tests/mcp_client.py <path_to_binary> <target_function> <[{"type": "symbolic_pointer", "size": <num>}, <num>, ...]
 ```
 
 Example:
@@ -55,7 +55,7 @@ Example:
 ```bash
 uv run python tests/mcp_client.py tests/fixtures/stack_overflow/gets_local.c vulnerable_function
 
-uv run python tests/mcp_client.py tests/fixtures/stack_overflow/strcpy_pointer.c copy_input '[{"type": "symbolic", "size": 64}]'
+uv run python tests/mcp_client.py tests/fixtures/stack_overflow/strcpy_pointer.c copy_input '[{"type": "symbolic_pointer", "size": 64}]'
 ```
 
 ## Developer

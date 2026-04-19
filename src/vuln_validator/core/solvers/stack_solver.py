@@ -49,6 +49,8 @@ class StackOverflowSolver(BaseSolver):
 
             current_offset = 0x80
 
+            regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
+
             if function_args:
                 state = project.factory.call_state(addr, stdin=symbolic_stdin)
                 logger.info(
@@ -58,36 +60,32 @@ class StackOverflowSolver(BaseSolver):
                 )
                 for i, arg in enumerate(function_args):
                     logger.debug("Processing argument %d: %s", i, arg)
-                    if isinstance(arg, dict) and arg.get("type") == "symbolic":
+                    if isinstance(arg, dict):
                         # Create a symbolic variable for this argument
                         sym_var = claripy.BVS(
                             f"arg_{i}", arg.get("size", 64) * 8
                         )  # Default to 64-bit symbolic variable
                         symbolic_args.append(sym_var)
-
-                        current_offset += arg.get(
-                            "size", 64
-                        )  # Increment offset for argument
-                        buffer_addr = state.solver.eval(state.regs.rsp) - current_offset
-
-                        state.memory.store(buffer_addr, sym_var)
-
-                        regs = [
-                            "rdi",
-                            "rsi",
-                            "rdx",
-                            "rcx",
-                            "r8",
-                            "r9",
-                        ]  # x86-64 calling convention
-                        if i < len(regs):
-                            setattr(state.regs, regs[i], buffer_addr)
-                        else:
-                            logger.warning(
-                                "More than 6 arguments provided. Additional arguments beyond the 6th are not supported in this implementation."
+                        if arg.get("type") == "symbolic_pointer":
+                            # Increment offset for argument
+                            current_offset += arg.get("size", 64)
+                            buffer_addr = (
+                                state.solver.eval(state.regs.rsp) - current_offset
                             )
+                            logger.info(
+                                "Storing symbolic argument %d at address: 0x%x",
+                                i,
+                                buffer_addr,
+                            )
+                            state.memory.store(buffer_addr, sym_var)
+
+                            if i < len(regs):
+                                setattr(state.regs, regs[i], buffer_addr)
+                            else:
+                                logger.warning(
+                                    "More than 6 arguments provided. Additional arguments beyond the 6th are not supported in this implementation."
+                                )
                     else:
-                        regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
                         if i < len(regs):
                             setattr(state.regs, regs[i], arg)
                         # Treat as concrete value
@@ -121,6 +119,7 @@ class StackOverflowSolver(BaseSolver):
                     len(simgr.errored),
                     step_count,
                 )
+                break
 
             simgr.step(n=step_size)
             step_count += step_size

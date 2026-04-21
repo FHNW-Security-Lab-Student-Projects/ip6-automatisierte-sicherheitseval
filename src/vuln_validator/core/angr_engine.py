@@ -1,5 +1,6 @@
 import angr
 import logging
+import time
 from pathlib import Path
 from typing import Dict, Any, List
 from .solvers.base_solver import BaseSolver
@@ -109,7 +110,12 @@ class AngrAnalyzer:
         for index, solver in enumerate(execution_plan):
             master_result["analyzed_types"].append(solver.vulnerability_type)
             try:
+                start_time = time.time()
                 result = solver.solve(self.project, target_function, function_args)
+                end_time = time.time()
+                logger.info(
+                    f"Solver '{solver.vulnerability_type}' completed in {end_time - start_time:.2f} seconds."
+                )
 
                 if result.get("is_vulnerable"):
                     master_result["is_vulnerable"] = True

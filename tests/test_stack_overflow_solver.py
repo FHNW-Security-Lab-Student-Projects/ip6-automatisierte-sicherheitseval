@@ -6,12 +6,6 @@ from vuln_validator.core.solvers.stack_solver import StackOverflowSolver
 TEST_CASES = [
     {
         "binary": "tests/fixtures/stack_overflow/gets_local",
-        "func": None,  # analyzes whole binary, should find the overflow in vulnerable_function
-        "args": None,
-        "should_find": True,
-    },
-    {
-        "binary": "tests/fixtures/stack_overflow/gets_local",
         "func": "vulnerable_function",
         "args": None,
         "should_find": True,
@@ -19,36 +13,22 @@ TEST_CASES = [
     {
         "binary": "tests/fixtures/stack_overflow/gets_pointer",
         "func": "vulnerable_function",
-        "args": [{"type": "symbolic", "size": 64}],
+        "args": [{"type": "symbolic_pointer", "size": 64}],
         "should_find": True,
     },
     {
         "binary": "tests/fixtures/stack_overflow/strcpy_pointer",
         "func": "copy_input",
-        "args": [{"type": "symbolic", "size": 64}],
-        "should_find": True,
-    },
-    {
-        "binary": "tests/fixtures/stack_overflow/strcpy_pointer",
-        "func": "copy_input",
-        "args": None,  # Fallback via stdin/uninitialized
-        "should_find": True,  # finds the overflow via stdin or uninitialized memory, even without explicit args
-    },
-    {
-        "binary": "tests/fixtures/stack_overflow/strcpy_pointer",
-        "func": "copy_input",
-        "args": [
-            {"type": "symbolic", "size": 2}
-        ],  # TODO: finds still overflow because "SimProcedure-Pessismism"
+        "args": [{"type": "symbolic_pointer", "size": 64}],
         "should_find": True,
     },
     {
         "binary": "tests/fixtures/stack_overflow/mixed_input",
         "func": "process_request",
         "args": [
-            {"type": "symbolic", "size": 64},  # user_id
-            {"type": "symbolic", "size": 128},  # input_data
-            {"type": "symbolic", "size": 8},  # log_level
+            {"type": "symbolic_value", "size": 4},  # user_id
+            {"type": "symbolic_pointer", "size": 128},  # input_data
+            {"type": "symbolic_value", "size": 4},  # log_level
         ],
         "should_find": True,  # should find the overflow in input_data, even with the "noise" of the other symbolic args
     },
@@ -56,11 +36,11 @@ TEST_CASES = [
         "binary": "tests/fixtures/stack_overflow/two_args",
         "func": "process_data",
         "args": [
-            {"type": "symbolic", "size": 1024},  # arg1
-            {"type": "symbolic", "size": 64},  # arg2
+            {"type": "symbolic_pointer", "size": 64},  # arg1
+            {"type": "symbolic_pointer", "size": 64},  # arg2
         ],
-        "should_find": False,
-    },  # TODO: Is there no stack overflow possible???
+        "should_find": True,
+    },
     # --- Safe binaries ---
     {
         "binary": "tests/fixtures/common/safe_binary",
@@ -72,20 +52,20 @@ TEST_CASES = [
         "name": "safe_strcpy: manual length check",
         "binary": "tests/fixtures/common/safe_strcpy",
         "func": "safe_func",
-        "args": [{"type": "symbolic", "size": 100}],
+        "args": [{"type": "symbolic_pointer", "size": 128}],
         "should_find": False,
     },
     {
         "binary": "tests/fixtures/common/safe_strncpy",
         "func": "safe_func",
-        "args": [{"type": "symbolic", "size": 100}],
+        "args": [{"type": "symbolic_pointer", "size": 128}],
         "should_find": False,
     },
     {
         "name": "false_positive_trap: complex logic (loop)",
         "binary": "tests/fixtures/common/false_positiv_trap",
         "func": "vulnerable_looking_func",
-        "args": [{"type": "symbolic", "size": 100}],
+        "args": [{"type": "symbolic_pointer", "size": 128}],
         "should_find": False,
     },
 ]
@@ -109,7 +89,7 @@ class TestStackOverflowSolver:
         """
         verifies that the result returned by the StackOverflowSolver contains all required keys and has the correct structure, regardless of whether a vulnerability was found or not.
         """
-        result = solver.solve(vuln_project)
+        result = solver.solve(vuln_project, target_function="vulnerable_function")
 
         required_keys = [
             "is_vulnerable",

@@ -60,6 +60,7 @@ def test_validate_vulnerability_tool_end_to_end() -> None:
             "validate_vulnerability",
             {
                 "target_path": str(FIXTURE_BINARY),
+                "target_function": "vulnerable_function",
                 "vulnerability_type": "stack_overflow",
             },
         )

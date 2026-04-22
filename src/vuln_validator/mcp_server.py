@@ -9,7 +9,7 @@ from vuln_validator.utils.audit_logger import audit_log
 mcp = FastMCP("VulnValidator")
 
 
-@mcp.prompt()
+@mcp.prompt()  # TODO: Remove since cannot be used anymore due to prompt injection security
 def find_vulnerability_workflow(target_path: str) -> str:
     """
     A workflow prompt that instructs the LLM to analyze code and validate the hypothesis rigorously.
@@ -43,7 +43,7 @@ def find_vulnerability_workflow(target_path: str) -> str:
 def validate_vulnerability(
     target_path: str,
     target_function: str = None,
-    function_args: List[Any] = None,
+    args: List[Any] = None,
     vulnerability_type: Literal[
         "stack_overflow", "heap_overflow", "format_string", "auto"
     ] = "auto",
@@ -65,9 +65,7 @@ def validate_vulnerability(
     """
     try:
         angr_analyzer = AngrAnalyzer(target_path)
-        result = angr_analyzer.run_analysis(
-            vulnerability_type, target_function, function_args
-        )
+        result = angr_analyzer.run_analysis(vulnerability_type, target_function, args)
 
         return result
 

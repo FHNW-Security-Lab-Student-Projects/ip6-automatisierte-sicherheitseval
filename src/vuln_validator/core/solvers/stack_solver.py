@@ -21,46 +21,55 @@ class StackOverflowSolver(BaseSolver):
     ) -> Dict[str, Any]:
         logger.info("Running %s solver...", self.vulnerability_type)
 
-        symbolic_stdin = claripy.BVS("my_input", 512 * 8)
-        symbolic_args = []
+        if not target_function:
+            return {
+                "is_vulnerable": False,
+                "target_function": None,
+                "evidence": [],
+                "message": "Stack overflow analysis aborted: No target function specified.",
+            }
 
+        # Generate CFG if not already available, for function resolution and analysis
         if not project.kb.functions:
             project.analyses.CFGFast()
 
-        if target_function:
-            try:
-                symbol = project.loader.main_object.get_symbol(target_function)
-                if symbol is None:
-                    raise KeyError
-                addr = project.kb.functions[symbol.rebased_addr].addr
-                logger.debug(
-                    "Target function '%s' found at address: 0x%x", target_function, addr
-                )
-            except KeyError:
-                logger.error(
-                    "Target function '%s' not found in binary.", target_function
-                )
-                return self._build_result(
-                    is_vulnerable=False,
-                    target_function=target_function,
-                    evidence=[],
-                    message=f"Stack overflow analysis aborted: Target function '{target_function}' does not exist or has no symbol table entry.",
-                )
+        try:
+            symbol = project.loader.main_object.get_symbol(target_function)
+            if symbol is None:
+                raise KeyError
+            addr = project.kb.functions[symbol.rebased_addr].addr
+            logger.debug(
+                "Target function '%s' found at address: 0x%x", target_function, addr
+            )
+        except KeyError:
+            logger.error("Target function '%s' not found in binary.", target_function)
+            return self._build_result(
+                target_function=target_function,
+                message=f"Stack overflow analysis aborted: Target function '{target_function}' does not exist or has no symbol table entry.",
+            )
 
-            current_offset = 0x80
+        symbolic_stdin = claripy.BVS("my_input", 512 * 8)
+        symbolic_args = []
+        current_offset = 0x80
 
-            regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
+        regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
 
-            if function_args:
-                state = project.factory.call_state(addr, stdin=symbolic_stdin)
-                logger.info(
-                    "Function arguments provided for '%s': %s",
-                    target_function,
-                    function_args,
-                )
-                for i, arg in enumerate(function_args):
-                    logger.debug("Processing argument %d: %s", i, arg)
-                    if isinstance(arg, dict):
+        state = project.factory.call_state(addr, stdin=symbolic_stdin)
+        logger.info("Created call state for function: %s", target_function)
+
+        if function_args:
+            logger.info(
+                "Function arguments provided for '%s': %s",
+                target_function,
+                function_args,
+            )
+            for i, arg in enumerate(function_args):
+                logger.debug("Processing argument %d: %s", i, arg)
+                if isinstance(arg, dict):
+                    if arg.get("type") == "concrete":
+                        value = arg.get("value", 0)
+                        self._write_to_register(regs, state, i, value)
+                    else:
                         # Create a symbolic variable for this argument
                         sym_var = claripy.BVS(
                             f"arg_{i}", arg.get("size", 64) * 8
@@ -69,6 +78,7 @@ class StackOverflowSolver(BaseSolver):
                         if arg.get("type") == "symbolic_pointer":
                             # Increment offset for argument
                             current_offset += arg.get("size", 64)
+                            # TODO Bereich schaffen welcher danach überprüft wird ob unconstrained
                             buffer_addr = (
                                 state.solver.eval(state.regs.rsp) - current_offset
                             )
@@ -79,31 +89,16 @@ class StackOverflowSolver(BaseSolver):
                             )
                             state.memory.store(buffer_addr, sym_var)
 
-                            if i < len(regs):
-                                setattr(state.regs, regs[i], buffer_addr)
-                            else:
-                                logger.warning(
-                                    "More than 6 arguments provided. Additional arguments beyond the 6th are not supported in this implementation."
-                                )
-                    else:
-                        if i < len(regs):
-                            setattr(state.regs, regs[i], arg)
-                        # Treat as concrete value
+                            self._write_to_register(regs, state, i, buffer_addr)
+                else:
+                    # Treat as concrete value (Fallback)
+                    self._write_to_register(regs, state, i, arg)
 
-                logger.info(
-                    "Created call state for function '%s' with symbolic arguments: %s",
-                    target_function,
-                    symbolic_args,
-                )
-            else:
-                # No function arguments provided, create a call state without arguments
-                state = project.factory.call_state(addr, stdin=symbolic_stdin)
-                logger.info("Created call state for function: %s", target_function)
-
-        else:
-            # no target function provided, start from entry point
-            state = project.factory.entry_state(stdin=symbolic_stdin)
-            logger.info("Creating entry state for the binary.")
+            logger.info(
+                "Created call state for function '%s' with symbolic arguments: %s",
+                target_function,
+                symbolic_args,
+            )
 
         simgr = project.factory.simulation_manager(state)
 
@@ -138,7 +133,6 @@ class StackOverflowSolver(BaseSolver):
                     vuln_data = self._extract_details(
                         state,
                         state_type,
-                        target_function,
                         symbolic_args,
                         symbolic_stdin,
                     )
@@ -147,22 +141,29 @@ class StackOverflowSolver(BaseSolver):
 
         if found_vuln:
             message = (
-                f"Stack Overflow confirmed in {'function ' + target_function if target_function else 'binary'}."
+                f"Stack Overflow confirmed in {target_function}."
                 f" Control flow hijack possible via symbolic RIP. "
             )
         else:
             message = (
-                f"No stack overflow found in {'function ' + target_function if target_function else 'binary'}."
+                f"No stack overflow found in {target_function} after exploring {step_count} steps. "
                 f" States terminated normally or crashed with concrete RIP."
             )
 
         return self._build_result(found_vuln, target_function, evidence_list, message)
 
+    def _write_to_register(self, regs, state, i, buffer_addr):
+        if i < len(regs):
+            setattr(state.regs, regs[i], buffer_addr)
+        else:
+            logger.warning(
+                "More than 6 arguments provided. Additional arguments beyond the 6th are not supported in this implementation."
+            )
+
     def _extract_details(
         self,
         state,
         state_type,
-        target_function: str,
         symbolic_args: List[Any],
         symbolic_stdin: Any,
     ) -> Dict[str, Any]:  # state_type is either "errored" or "unconstrained"
@@ -171,7 +172,7 @@ class StackOverflowSolver(BaseSolver):
             "input_hex": {},
             "description": f"{state_type.capitalize()} state with symbolic RIP detected.",
         }
-        if target_function and symbolic_args:
+        if symbolic_args:
             for idx, sym_arg in enumerate(symbolic_args):
                 try:
                     val = state.solver.eval(sym_arg, cast_to=bytes)
@@ -199,10 +200,10 @@ class StackOverflowSolver(BaseSolver):
 
     def _build_result(
         self,
-        is_vulnerable: bool,
-        target_function: str,
-        evidence: List[Dict],
-        message: str,
+        is_vulnerable: bool = False,
+        target_function: str = None,
+        evidence: List[Dict] = [],
+        message: str = "",
     ) -> Dict[str, Any]:
         return {
             "is_vulnerable": is_vulnerable,

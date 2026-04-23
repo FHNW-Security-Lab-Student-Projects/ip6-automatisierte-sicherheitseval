@@ -173,10 +173,8 @@ class StackOverflowSolver(BaseSolver):
 
         found_vuln = False
         evidence_list = []
-        # overflow_reason = None
 
         canary_hit = False
-        # hit_canary_details = []
 
         for state in chain(simgr.errored, simgr.unconstrained):
             if state.solver.symbolic(state.regs.rip):
@@ -184,9 +182,12 @@ class StackOverflowSolver(BaseSolver):
 
                 vuln_data = self._get_cause(
                     state,
-                    state_type,
                     symbolic_args,
                     symbolic_stdin,
+                )
+                vuln_data["state_type"] = state_type
+                vuln_data["description"] = (
+                    f"{state_type.capitalize()} state with symbolic RIP detected"
                 )
                 evidence_list.append(vuln_data)
                 found_vuln = True
@@ -206,16 +207,14 @@ class StackOverflowSolver(BaseSolver):
                         logger.info("are we here?")
                         logger.info(state)
                         canary_hit = True
-                        # hit_canary_details = {
-                        #     "addr": c["addr"],
-                        #     "status": "symbolic",
-                        # }
-                        # overflow_reason = "Canary value overwritten with symbolic data."
                         vuln_data = self._get_cause(
                             state,
-                            "canary_symbolic",
                             symbolic_args,
                             symbolic_stdin,
+                        )
+                        vuln_data["state_type"] = "canary_symbolic"
+                        vuln_data["description"] = (
+                            f"Canary at address 0x{c['addr']:x} is symbolic, indicating potential overflow and control over canary value."
                         )
                         evidence_list.append(vuln_data)
                         break
@@ -225,19 +224,14 @@ class StackOverflowSolver(BaseSolver):
                         if concrete_value != c["expected"]:
                             logger.info("or here?")
                             canary_hit = True
-                            # hit_canary_details = {
-                            #     "addr": c["addr"],
-                            #     "status": "modified",
-                            #     "new_value": hex(concrete_value),
-                            # }
-                            # overflow_reason = (
-                            #     f"Canary value overwritten to {hex(concrete_value)}"
-                            # )
                             vuln_data = self._get_cause(
                                 state,
-                                "canary_modified",
                                 symbolic_args,
                                 symbolic_stdin,
+                            )
+                            vuln_data["state_type"] = "canary_modified"
+                            vuln_data["description"] = (
+                                f"Canary at address 0x{c['addr']:x} modified from expected value 0x{c['expected']:x} to {hex(concrete_value)}, indicating potential overflow that overwrote the canary."
                             )
                             evidence_list.append(vuln_data)
                             break
@@ -250,10 +244,7 @@ class StackOverflowSolver(BaseSolver):
                 break
 
         if found_vuln or canary_hit:
-            message = (
-                f"Stack Overflow confirmed in {target_function}."
-                f" Control flow hijack possible via symbolic RIP. "
-            )
+            message = f"Stack Overflow confirmed in {target_function}."
         else:
             message = (
                 f"No stack overflow found in {target_function} after exploring {step_count} steps. "
@@ -273,14 +264,11 @@ class StackOverflowSolver(BaseSolver):
     def _get_cause(
         self,
         state,
-        state_type,
         symbolic_args: List[Any],
         symbolic_stdin: Any,
     ) -> Dict[str, Any]:  # state_type is either "errored" or "unconstrained"
         details = {
-            "state_type": state_type,
             "input_hex": {},
-            "description": f"{state_type.capitalize()} state with symbolic RIP detected.",
         }
         if symbolic_args:
             for idx, sym_arg in enumerate(symbolic_args):
@@ -291,7 +279,6 @@ class StackOverflowSolver(BaseSolver):
                     logger.warning(
                         "Failed to extract arg %d from %s state: %s",
                         idx,
-                        state_type,
                         e,
                     )
                     details["input_hex"][f"arg_{idx}"] = "Extraction failed"
@@ -301,11 +288,12 @@ class StackOverflowSolver(BaseSolver):
                 details["input_hex"]["stdin"] = poc.hex()
             except Exception as e:
                 logger.warning(
-                    "Failed to extract input from %s state: %s", state_type, str(e)
+                    "Failed to extract stdin from %s state: %s",
+                    e,
                 )
                 details["input_hex"]["stdin"] = "Extraction failed"
 
-        logger.info("Extracted details from %s state: %s", state_type, details)
+        logger.debug("Extracted details for %s state: %s", state, details)
         return details
 
     def _build_result(

@@ -7,7 +7,7 @@ import anyio
 
 from vuln_validator.mcp_server import mcp
 
-FIXTURE_BINARY = Path("tests/fixtures/stack_overflow/gets_local/bin")
+FIXTURE_BINARY = Path("tests/fixtures/stack_overflow/gets_local")
 
 
 def test_mcp_registration_exposes_expected_tool_and_prompt() -> None:
@@ -46,7 +46,7 @@ def test_mcp_prompt_renders_target_path() -> None:
     prompt_text = anyio.run(_render_prompt)
 
     assert str(FIXTURE_BINARY) in prompt_text
-    assert "tests/fixtures/stack_overflow/gets_local/bin" in prompt_text
+    assert "tests/fixtures/stack_overflow/gets_local" in prompt_text
 
 
 def test_validate_vulnerability_tool_end_to_end() -> None:
@@ -60,6 +60,7 @@ def test_validate_vulnerability_tool_end_to_end() -> None:
             "validate_vulnerability",
             {
                 "target_path": str(FIXTURE_BINARY),
+                "target_function": "vulnerable_function",
                 "vulnerability_type": "stack_overflow",
             },
         )

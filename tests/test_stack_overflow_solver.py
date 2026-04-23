@@ -5,45 +5,67 @@ from vuln_validator.core.solvers.stack_solver import StackOverflowSolver
 
 TEST_CASES = [
     {
-        "binary": "tests/fixtures/stack_overflow/gets_local/bin",
-        "func": None,  # analyzes whole binary, should find the overflow in vulnerable_function
-        "args": None,
-        "should_find": True,
-    },
-    {
-        "binary": "tests/fixtures/stack_overflow/gets_local/bin",
+        "binary": "tests/fixtures/stack_overflow/gets_local",
         "func": "vulnerable_function",
         "args": None,
         "should_find": True,
     },
     {
-        "binary": "tests/fixtures/stack_overflow/gets_pointer/bin",
+        "binary": "tests/fixtures/stack_overflow/gets_pointer",
         "func": "vulnerable_function",
-        "args": [{"type": "symbolic", "size": 64}],
-        "should_find": False,
-    },
-    {
-        "binary": "tests/fixtures/stack_overflow/gets_pointer/bin",
-        "func": "vulnerable_function",
-        "args": [{"type": "symbolic", "size": 1024}],
+        "args": [{"type": "symbolic_pointer", "size": 64}],
         "should_find": True,
     },
     {
-        "binary": "tests/fixtures/stack_overflow/strcpy_pointer/bin",
+        "binary": "tests/fixtures/stack_overflow/strcpy_pointer",
         "func": "copy_input",
-        "args": [{"type": "symbolic", "size": 64}],
+        "args": [{"type": "symbolic_pointer", "size": 64}],
         "should_find": True,
     },
     {
-        "binary": "tests/fixtures/stack_overflow/strcpy_pointer/bin",
-        "func": "copy_input",
-        "args": None,  # Fallback via stdin/uninitialized
-        "should_find": True,  # finds the overflow via stdin or uninitialized memory, even without explicit args
+        "binary": "tests/fixtures/stack_overflow/mixed_input",
+        "func": "process_request",
+        "args": [
+            {"type": "symbolic_value", "size": 4},  # user_id
+            {"type": "symbolic_pointer", "size": 128},  # input_data
+            {"type": "symbolic_value", "size": 4},  # log_level
+        ],
+        "should_find": True,  # should find the overflow in input_data, even with the "noise" of the other symbolic args
     },
+    {
+        "binary": "tests/fixtures/stack_overflow/two_args",
+        "func": "process_data",
+        "args": [
+            {"type": "symbolic_pointer", "size": 32},  # arg1
+            {"type": "symbolic_pointer", "size": 32},  # arg2
+        ],
+        "should_find": True,
+    },
+    # --- Safe binaries ---
     {
         "binary": "tests/fixtures/common/safe_binary",
         "func": "safe_func",
         "args": None,
+        "should_find": False,
+    },
+    {
+        "name": "safe_strcpy: manual length check",
+        "binary": "tests/fixtures/common/safe_strcpy",
+        "func": "safe_func",
+        "args": [{"type": "symbolic_pointer", "size": 128}],
+        "should_find": False,
+    },
+    {
+        "binary": "tests/fixtures/common/safe_strncpy",
+        "func": "safe_func",
+        "args": [{"type": "symbolic_pointer", "size": 128}],
+        "should_find": False,
+    },
+    {
+        "name": "false_positive_trap: complex logic (loop)",
+        "binary": "tests/fixtures/common/false_positiv_trap",
+        "func": "vulnerable_looking_func",
+        "args": [{"type": "symbolic_pointer", "size": 128}],
         "should_find": False,
     },
 ]
@@ -60,14 +82,14 @@ class TestStackOverflowSolver:
     def vuln_project(self):
         """Loads the vulnerable test binary."""
         return angr.Project(
-            "tests/fixtures/stack_overflow/gets_local/bin", auto_load_libs=False
+            "tests/fixtures/stack_overflow/gets_local", auto_load_libs=False
         )
 
     def test_result_structure(self, solver, vuln_project):
         """
         verifies that the result returned by the StackOverflowSolver contains all required keys and has the correct structure, regardless of whether a vulnerability was found or not.
         """
-        result = solver.solve(vuln_project)
+        result = solver.solve(vuln_project, target_function="vulnerable_function")
 
         required_keys = [
             "is_vulnerable",

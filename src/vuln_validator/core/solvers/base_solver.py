@@ -27,10 +27,11 @@ class BaseSolver(ABC):
             target_function: Optional name of the function to focus the analysis on. If None, analyzes the entire binary.
 
         Returns:
-            A dictionary with:
+            A dictionary with: # TODO
             - 'is_vulnerable': bool
-            - 'evidence': dict (Registers, values, paths)
-            - 'payload': str (optional, the found exploit string)
+            - 'type': str (vulnerability type)
+            - 'target_function': str (the function analyzed)
+            - 'evidence': dict (details about the vulnerability)
             - 'message': str (Readable summary)
         """
         pass

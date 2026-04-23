@@ -19,7 +19,7 @@ if not audit_logger.handlers:
     audit_logger.addHandler(handler)
 
 
-# Helper function for manual logging of audit events
+# Helper function for logging of audit events
 def log_audit_event(event_data: Dict[str, Any]) -> None:
     """
     Writes a single event to the audit log.
@@ -54,6 +54,10 @@ def audit_log(tool_name: str) -> Callable:
                         "summary": {
                             "is_vulnerable": result.get("is_vulnerable"),
                             "findings_count": len(result.get("findings", [])),
+                            "message": result.get("message", ""),
+                            "evidence_input_hex": [
+                                e.get("input_hex") for e in result.get("evidence", [])
+                            ],
                         },
                     }
                 )

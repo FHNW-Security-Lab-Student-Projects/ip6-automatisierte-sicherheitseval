@@ -1,3 +1,47 @@
+## [0.3.0] - 2026-04-23
+
+### 🚀 Features
+
+- Show input for overflow in audit log and to the user
+- Make steps dynamic
+- Differ between pointer and value
+- Add new prompt
+- Add canaries for pointers from arg
+
+### 🐛 Bug Fixes
+
+- Offset for args
+- Update prompt
+
+### 🚜 Refactor
+
+- Simplify and remove option for analyzing whole binary
+
+### 📚 Documentation
+
+- Update Readme
+- Fix Readme
+
+### ⚡ Performance
+
+- Optimize prompt with clearer instuctions
+
+### 🧪 Testing
+
+- Add test-cases for safe binaries
+- Add more binaries with stackbufferoverflow
+- Add stackbufferoverflow binaries to test
+- Add binaries with nested function
+
+### ⚙️ Miscellaneous Tasks
+
+- Rename testbinaries
+- Add more binaries
+- Measure time of analysis
+- Remove unnecessary tests
+- Unified result (symbolic rip and canary)
+- Remove unnecessary logs and code
+- *(merge)* Merge pull request #4 from FHNW-Security-Lab-Student-Projects/dev
 ## [0.2.0] - 2026-04-10
 
 ### 🚀 Features
@@ -41,6 +85,7 @@
 - Tests for understanding args
 - Cleanup test folder.
 - *(merge)* Merge pull request #2 from FHNW-Security-Lab-Student-Projects/dev
+- Update changelog
 ## [0.1.0] - 2026-03-30
 
 ### 🚀 Features

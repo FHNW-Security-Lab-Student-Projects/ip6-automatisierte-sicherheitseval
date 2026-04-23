@@ -5,6 +5,10 @@ Follow this strict procedure:
 1. **Code Analysis and Hypothesis**:
    - Read the content of the provided file(s).
    - Identify any function containing a potentially unsafe operation involving memory access or data copying. This is your **Target Function**.
+   - For each file, decide:
+     - Vulnerability suspected → proceed to steps 2 and 3.
+     - Clearly safe → skip steps 2 and 3; document as safe without calling the tool.
+     - Uncertain → proceed to steps 2 and 3 with vulnerability_type = "auto".
    - Analyze the arguments of the **Target Function**:
      - Identify which arguments are pointers or reference memory buffers.
      - Determine the appropriate **size** in bytes for each buffer based on the code context.
@@ -18,7 +22,7 @@ Follow this strict procedure:
    - If the target function takes no arguments, the list is empty.
 
 3. **Validation Call**:
-   - You MUST call the `validate_vulnerability` tool with the following parameters:
+   - For validation you MUST call the `validate_vulnerability` tool with the following parameters:
      - `target_path`: The exact path of the analyzed file.
      - `target_function`: The name of the function containing the unsafe operation.
      - `vulnerability_type`: The specific category of vulnerability (e.g., "stack_overflow", "heap_overflow", "format_string") or "auto" if uncertain.

@@ -88,7 +88,7 @@ class StackOverflowSolver(BaseSolver):
                                 state.solver.eval(state.regs.rsp) - current_offset
                             )
                             current_offset += padding_size  # space for underflow canary
-                            logger.info(
+                            logger.debug(
                                 "Storing symbolic argument %d at address: 0x%x",
                                 i,
                                 buffer_addr,
@@ -113,7 +113,7 @@ class StackOverflowSolver(BaseSolver):
                                     "padding_size": padding_size,
                                 }
                             )
-                            logger.info(
+                            logger.debug(
                                 "Placed overflow canary for argument %d at address: 0x%x with expected value: 0x%x",
                                 i,
                                 canary_addr,
@@ -132,14 +132,12 @@ class StackOverflowSolver(BaseSolver):
                                     "padding_size": padding_size,
                                 }
                             )
-                            logger.info(
+                            logger.debug(
                                 "Placed underflow canary for argument %d at address: 0x%x with expected value: 0x%x",
                                 i,
                                 canary_addr_underflow,
                                 canary_value,
                             )
-                            # for j in range(16):
-                            #     logger.info(f"addr 0x{canary_addr_underflow + j*4:x} contains symbolic value: {state.memory.load(canary_addr + j*4, 4, endness=project.arch.memory_endness)}")
 
                             self._write_to_register(regs, state, i, buffer_addr)
                 else:
@@ -202,10 +200,7 @@ class StackOverflowSolver(BaseSolver):
                         c["padding_size"],
                         endness=project.arch.memory_endness,
                     )
-                    logger.info(f"checking caaaaaaanary {current_value}")
                     if state.solver.symbolic(current_value):
-                        logger.info("are we here?")
-                        logger.info(state)
                         canary_hit = True
                         vuln_data = self._get_cause(
                             state,
@@ -222,7 +217,6 @@ class StackOverflowSolver(BaseSolver):
                         concrete_value = state.solver.eval(current_value)
                         logger.info(f"concrete value of canary: {hex(concrete_value)}")
                         if concrete_value != c["expected"]:
-                            logger.info("or here?")
                             canary_hit = True
                             vuln_data = self._get_cause(
                                 state,

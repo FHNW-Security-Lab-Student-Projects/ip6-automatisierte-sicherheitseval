@@ -43,7 +43,7 @@ def find_vulnerability_workflow(target_path: str) -> str:
 def validate_vulnerability(
     target_path: str,
     target_function: str = None,
-    args: List[Any] = None,
+    function_args: List[Any] = None,
     vulnerability_type: Literal[
         "stack_overflow", "heap_overflow", "format_string", "auto"
     ] = "auto",
@@ -65,7 +65,9 @@ def validate_vulnerability(
     """
     try:
         angr_analyzer = AngrAnalyzer(target_path)
-        result = angr_analyzer.run_analysis(vulnerability_type, target_function, args)
+        result = angr_analyzer.run_analysis(
+            vulnerability_type, target_function, function_args
+        )
 
         return result
 

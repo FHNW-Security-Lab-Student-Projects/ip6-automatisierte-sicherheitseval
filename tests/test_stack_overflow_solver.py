@@ -36,8 +36,8 @@ TEST_CASES = [
         "binary": "tests/fixtures/stack_overflow/two_args",
         "func": "process_data",
         "args": [
-            {"type": "symbolic_pointer", "size": 64},  # arg1
-            {"type": "symbolic_pointer", "size": 64},  # arg2
+            {"type": "symbolic_pointer", "size": 32},  # arg1
+            {"type": "symbolic_pointer", "size": 32},  # arg2
         ],
         "should_find": True,
     },

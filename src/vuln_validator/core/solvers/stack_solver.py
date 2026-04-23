@@ -3,6 +3,7 @@ import angr
 import claripy
 from typing import List, Dict, Any
 import logging
+from itertools import chain
 
 logger = logging.getLogger(__name__)
 
@@ -50,9 +51,10 @@ class StackOverflowSolver(BaseSolver):
 
         symbolic_stdin = claripy.BVS("my_input", 512 * 8)
         symbolic_args = []
-        current_offset = 0x80
-
+        current_offset = 0x80  # in bytes (128 bytes)
+        padding_size = 0x4  # in bytes (4 bytes for canary)
         regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
+        canaries = []
 
         state = project.factory.call_state(addr, stdin=symbolic_stdin)
         logger.info("Created call state for function: %s", target_function)
@@ -66,28 +68,78 @@ class StackOverflowSolver(BaseSolver):
             for i, arg in enumerate(function_args):
                 logger.debug("Processing argument %d: %s", i, arg)
                 if isinstance(arg, dict):
-                    if arg.get("type") == "concrete":
+                    arg_type = arg.get("type")
+                    if arg_type == "concrete":
                         value = arg.get("value", 0)
                         self._write_to_register(regs, state, i, value)
                     else:
-                        # Create a symbolic variable for this argument
-                        sym_var = claripy.BVS(
-                            f"arg_{i}", arg.get("size", 64) * 8
+                        size = arg.get(
+                            "size", 64
                         )  # Default to 64-bit symbolic variable
+                        # Create a symbolic variable for this argument
+                        sym_var = claripy.BVS(f"arg_{i}", size * 8)
                         symbolic_args.append(sym_var)
-                        if arg.get("type") == "symbolic_pointer":
+                        if arg_type == "symbolic_pointer":
                             # Increment offset for argument
-                            current_offset += arg.get("size", 64)
-                            # TODO Bereich schaffen welcher danach überprüft wird ob unconstrained
+                            current_offset += (
+                                size + padding_size
+                            )  # space for argument + overflow canary
                             buffer_addr = (
                                 state.solver.eval(state.regs.rsp) - current_offset
                             )
+                            current_offset += padding_size  # space for underflow canary
                             logger.info(
                                 "Storing symbolic argument %d at address: 0x%x",
                                 i,
                                 buffer_addr,
                             )
                             state.memory.store(buffer_addr, sym_var)
+
+                            canary_addr = buffer_addr + size
+                            canary_addr_underflow = buffer_addr - padding_size
+                            canary_value = 0x41414141  # 'AAAA' in hex (4 bytes)
+
+                            # claripy.BVV(value, size_in_bits)
+                            state.memory.store(
+                                canary_addr,
+                                claripy.BVV(canary_value, padding_size * 8),
+                                endness=project.arch.memory_endness,
+                            )
+                            canaries.append(
+                                {
+                                    "addr": canary_addr,
+                                    "expected": canary_value,
+                                    "arg_idx": i,
+                                    "padding_size": padding_size,
+                                }
+                            )
+                            logger.info(
+                                "Placed overflow canary for argument %d at address: 0x%x with expected value: 0x%x",
+                                i,
+                                canary_addr,
+                                canary_value,
+                            )
+                            state.memory.store(
+                                canary_addr_underflow,
+                                claripy.BVV(canary_value, padding_size * 8),
+                                endness=project.arch.memory_endness,
+                            )
+                            canaries.append(
+                                {
+                                    "addr": canary_addr_underflow,
+                                    "expected": canary_value,
+                                    "arg_idx": i,
+                                    "padding_size": padding_size,
+                                }
+                            )
+                            logger.info(
+                                "Placed underflow canary for argument %d at address: 0x%x with expected value: 0x%x",
+                                i,
+                                canary_addr_underflow,
+                                canary_value,
+                            )
+                            # for j in range(16):
+                            #     logger.info(f"addr 0x{canary_addr_underflow + j*4:x} contains symbolic value: {state.memory.load(canary_addr + j*4, 4, endness=project.arch.memory_endness)}")
 
                             self._write_to_register(regs, state, i, buffer_addr)
                 else:
@@ -121,25 +173,83 @@ class StackOverflowSolver(BaseSolver):
 
         found_vuln = False
         evidence_list = []
+        # overflow_reason = None
 
-        states_to_check = [
-            (simgr.errored, "errored"),
-            (simgr.unconstrained, "unconstrained"),
-        ]
+        canary_hit = False
+        # hit_canary_details = []
 
-        for state_list, state_type in states_to_check:
-            for state in state_list:
-                if state.solver.symbolic(state.regs.rip):
-                    vuln_data = self._extract_details(
-                        state,
-                        state_type,
-                        symbolic_args,
-                        symbolic_stdin,
+        for state in chain(simgr.errored, simgr.unconstrained):
+            if state.solver.symbolic(state.regs.rip):
+                state_type = "errored" if state in simgr.errored else "unconstrained"
+
+                vuln_data = self._get_cause(
+                    state,
+                    state_type,
+                    symbolic_args,
+                    symbolic_stdin,
+                )
+                evidence_list.append(vuln_data)
+                found_vuln = True
+
+        for state in chain(
+            simgr.active, simgr.deadended, simgr.unconstrained, simgr.errored
+        ):
+            for c in canaries:
+                try:
+                    current_value = state.memory.load(
+                        c["addr"],
+                        c["padding_size"],
+                        endness=project.arch.memory_endness,
                     )
-                    evidence_list.append(vuln_data)
-                    found_vuln = True
+                    logger.info(f"checking caaaaaaanary {current_value}")
+                    if state.solver.symbolic(current_value):
+                        logger.info("are we here?")
+                        logger.info(state)
+                        canary_hit = True
+                        # hit_canary_details = {
+                        #     "addr": c["addr"],
+                        #     "status": "symbolic",
+                        # }
+                        # overflow_reason = "Canary value overwritten with symbolic data."
+                        vuln_data = self._get_cause(
+                            state,
+                            "canary_symbolic",
+                            symbolic_args,
+                            symbolic_stdin,
+                        )
+                        evidence_list.append(vuln_data)
+                        break
+                    else:
+                        concrete_value = state.solver.eval(current_value)
+                        logger.info(f"concrete value of canary: {hex(concrete_value)}")
+                        if concrete_value != c["expected"]:
+                            logger.info("or here?")
+                            canary_hit = True
+                            # hit_canary_details = {
+                            #     "addr": c["addr"],
+                            #     "status": "modified",
+                            #     "new_value": hex(concrete_value),
+                            # }
+                            # overflow_reason = (
+                            #     f"Canary value overwritten to {hex(concrete_value)}"
+                            # )
+                            vuln_data = self._get_cause(
+                                state,
+                                "canary_modified",
+                                symbolic_args,
+                                symbolic_stdin,
+                            )
+                            evidence_list.append(vuln_data)
+                            break
+                except Exception as e:
+                    logger.warning(
+                        "Failed to check canary at address 0x%x: %s", c["addr"], e
+                    )
+            if canary_hit:
+                found_vuln = True
+                break
 
-        if found_vuln:
+        if found_vuln or canary_hit:
             message = (
                 f"Stack Overflow confirmed in {target_function}."
                 f" Control flow hijack possible via symbolic RIP. "
@@ -160,7 +270,7 @@ class StackOverflowSolver(BaseSolver):
                 "More than 6 arguments provided. Additional arguments beyond the 6th are not supported in this implementation."
             )
 
-    def _extract_details(
+    def _get_cause(
         self,
         state,
         state_type,

@@ -128,10 +128,9 @@ def test_heap_overflow_safe_canaries():
 
     proj.hook_symbol("malloc", MyFakeMalloc())
 
-    # sym_input = claripy.BVS("input", 64 * 8)
-    overflow_input = claripy.BVV(b"B" * 40 + b"\n")
+    sym_input = claripy.BVS("input", 64 * 8)
 
-    state = proj.factory.call_state(addr=vuln_func_addr, stdin=overflow_input)
+    state = proj.factory.call_state(addr=vuln_func_addr, stdin=sym_input)
 
     simgr = proj.factory.simulation_manager(state)
 

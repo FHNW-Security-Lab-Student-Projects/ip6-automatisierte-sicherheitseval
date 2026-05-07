@@ -29,6 +29,9 @@ class BaseMemorySolver(BaseSolver):
         if not project.kb.functions:
             project.analyses.CFGFast()
 
+        # 1. Environment Setup
+        self._setup_environment(project)
+
         # 1. Function Address Resolution
         try:
             symbol = project.loader.main_object.get_symbol(target_function)
@@ -116,6 +119,13 @@ class BaseMemorySolver(BaseSolver):
                 evidence_list.append(vuln_data)
                 found_vuln = True
 
+        for state in chain(
+            simgr.active, simgr.deadended, simgr.errored, simgr.unconstrained
+        ):
+            if "heap_canary_list" in state.globals:
+                for chunk in state.globals["heap_canary_list"]:
+                    canaries.append(chunk)
+
         # Check 2: Canaries (Data Corruption)
         for state in chain(
             simgr.active, simgr.deadended, simgr.unconstrained, simgr.errored
@@ -165,7 +175,7 @@ class BaseMemorySolver(BaseSolver):
         if found_vuln:
             msg = f"{self.vulnerability_type.replace('_', ' ').title()} confirmed in '{target_function}'."
         else:
-            msg = f"No {self.vulnerability_type} found in '{target_function}'."
+            msg = f"No {self.vulnerability_type.replace('_', ' ').title()} found in '{target_function}'."
 
         return self._build_result(found_vuln, target_function, evidence_list, msg)
 

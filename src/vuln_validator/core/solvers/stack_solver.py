@@ -11,6 +11,9 @@ class StackOverflowSolver(BaseMemorySolver):
     def vulnerability_type(self) -> str:
         return "stack_overflow"
 
+    def _setup_environment(self, project):
+        pass
+
     def _place_buffers_and_canaries(self, state, project, function_args):
 
         symbolic_args = []

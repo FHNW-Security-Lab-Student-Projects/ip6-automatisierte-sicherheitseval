@@ -17,7 +17,11 @@ class MyFakeMalloc(angr.SimProcedure):
         ret_addr = self.state.globals["heap_ptr"]
 
         canary_addr = ret_addr + size
-        self.state.memory.store(canary_addr, claripy.BVV(0xDEADBEEF, 32))
+        self.state.memory.store(
+            canary_addr,
+            claripy.BVV(0xDEADBEEF, 32),
+            endness=self.state.arch.memory_endness,
+        )
         self.state.globals["heap_canary_list"].append(
             {
                 "addr": self.state.solver.eval(canary_addr),

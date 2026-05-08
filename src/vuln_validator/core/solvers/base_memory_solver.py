@@ -87,7 +87,10 @@ class BaseMemorySolver(BaseSolver):
             simgr.step(n=step_size)
             step_count += step_size
 
-        # 5. Evaluation of results
+        # 5. Collect canaries from all states (heap/stack)
+        canaries = self._collect_canaries(simgr, canaries)
+
+        # 6. Evaluation of results
         return self._evaluate_results(
             simgr, canaries, symbolic_args, symbolic_stdin, target_function
         )
@@ -99,6 +102,17 @@ class BaseMemorySolver(BaseSolver):
         Return: (symbolic_args, canaries)
         """
         pass
+
+    def _collect_canaries(self, simgr, canaries):
+        if canaries is None:
+            canaries = []
+        for state in chain(
+            simgr.active, simgr.deadended, simgr.errored, simgr.unconstrained
+        ):
+            if "heap_canary_list" in state.globals:
+                for chunk in state.globals["heap_canary_list"]:
+                    canaries.append(chunk)
+        return canaries
 
     def _evaluate_results(
         self, simgr, canaries, symbolic_args, symbolic_stdin, target_function
@@ -118,13 +132,6 @@ class BaseMemorySolver(BaseSolver):
                 )
                 evidence_list.append(vuln_data)
                 found_vuln = True
-
-        for state in chain(
-            simgr.active, simgr.deadended, simgr.errored, simgr.unconstrained
-        ):
-            if "heap_canary_list" in state.globals:
-                for chunk in state.globals["heap_canary_list"]:
-                    canaries.append(chunk)
 
         # Check 2: Canaries (Data Corruption)
         for state in chain(

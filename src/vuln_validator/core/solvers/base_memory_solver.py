@@ -60,9 +60,7 @@ class BaseMemorySolver(BaseSolver):
         )
 
         # 3. Specific setup delegation (The child solver does the magic)
-        symbolic_args, canaries = self._place_buffers_and_canaries(
-            state, project, function_args
-        )
+        symbolic_args = self._place_buffers_and_canaries(state, project, function_args)
 
         if symbolic_args is None:  # Error during buffer/canary setup
             return self._build_result(
@@ -88,7 +86,7 @@ class BaseMemorySolver(BaseSolver):
             step_count += step_size
 
         # 5. Collect canaries from all states (heap/stack)
-        canaries = self._collect_canaries(simgr, canaries)
+        canaries = self._collect_canaries(simgr)
 
         # 6. Evaluation of results
         return self._evaluate_results(
@@ -103,14 +101,16 @@ class BaseMemorySolver(BaseSolver):
         """
         pass
 
-    def _collect_canaries(self, simgr, canaries):
-        if canaries is None:
-            canaries = []
+    def _collect_canaries(self, simgr):
+        canaries = []
         for state in chain(
             simgr.active, simgr.deadended, simgr.errored, simgr.unconstrained
         ):
             if "heap_canary_list" in state.globals:
                 for chunk in state.globals["heap_canary_list"]:
+                    canaries.append(chunk)
+            if "stack_canary_list" in state.globals:
+                for chunk in state.globals["stack_canary_list"]:
                     canaries.append(chunk)
         return canaries
 

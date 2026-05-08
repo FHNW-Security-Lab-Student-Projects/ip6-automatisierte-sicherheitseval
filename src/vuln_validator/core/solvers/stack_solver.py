@@ -20,7 +20,9 @@ class StackOverflowSolver(BaseMemorySolver):
         current_offset = 0x80  # in bytes (128 bytes)
         padding_size = 0x4  # in bytes (4 bytes for canary)
         regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
-        canaries = []
+
+        if "stack_canary_list" not in state.globals:
+            state.globals["stack_canary_list"] = []
 
         if function_args:
             logger.info(
@@ -66,7 +68,7 @@ class StackOverflowSolver(BaseMemorySolver):
                                 claripy.BVV(canary_value, padding_size * 8),
                                 endness=project.arch.memory_endness,
                             )
-                            canaries.append(
+                            state.globals["stack_canary_list"].append(
                                 {
                                     "addr": canary_addr,
                                     "expected": canary_value,
@@ -85,7 +87,7 @@ class StackOverflowSolver(BaseMemorySolver):
                                 claripy.BVV(canary_value, padding_size * 8),
                                 endness=project.arch.memory_endness,
                             )
-                            canaries.append(
+                            state.globals["stack_canary_list"].append(
                                 {
                                     "addr": canary_addr_underflow,
                                     "expected": canary_value,
@@ -105,7 +107,7 @@ class StackOverflowSolver(BaseMemorySolver):
                     # Treat as concrete value (Fallback)
                     self._write_to_register(regs, state, i, arg)
 
-        return symbolic_args, canaries
+        return symbolic_args
 
     def _write_to_register(self, regs, state, i, buffer_addr):
         if i < len(regs):

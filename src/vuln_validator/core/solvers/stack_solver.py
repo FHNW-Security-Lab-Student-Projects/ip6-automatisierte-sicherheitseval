@@ -21,8 +21,8 @@ class StackOverflowSolver(BaseMemorySolver):
         padding_size = 0x4  # in bytes (4 bytes for canary)
         regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
 
-        if "stack_canary_list" not in state.globals:
-            state.globals["stack_canary_list"] = []
+        if "canary_list" not in state.globals:
+            state.globals["canary_list"] = []
 
         if function_args:
             logger.info(
@@ -68,7 +68,7 @@ class StackOverflowSolver(BaseMemorySolver):
                                 claripy.BVV(canary_value, padding_size * 8),
                                 endness=project.arch.memory_endness,
                             )
-                            state.globals["stack_canary_list"].append(
+                            state.globals["canary_list"].append(
                                 {
                                     "addr": canary_addr,
                                     "expected": canary_value,
@@ -87,7 +87,7 @@ class StackOverflowSolver(BaseMemorySolver):
                                 claripy.BVV(canary_value, padding_size * 8),
                                 endness=project.arch.memory_endness,
                             )
-                            state.globals["stack_canary_list"].append(
+                            state.globals["canary_list"].append(
                                 {
                                     "addr": canary_addr_underflow,
                                     "expected": canary_value,

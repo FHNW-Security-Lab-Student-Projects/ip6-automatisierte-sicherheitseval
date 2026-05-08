@@ -8,7 +8,7 @@ class MyFakeMalloc(angr.SimProcedure):
     def run(self, size):
         if "heap_ptr" not in self.state.globals:
             self.state.globals["heap_ptr"] = self.HEAP_START
-            self.state.globals["heap_canary_list"] = []
+            self.state.globals["canary_list"] = []
 
         ret_addr = self.state.globals["heap_ptr"]
 
@@ -18,7 +18,7 @@ class MyFakeMalloc(angr.SimProcedure):
             claripy.BVV(0xDEADBEEF, 32),
             endness=self.state.arch.memory_endness,
         )
-        self.state.globals["heap_canary_list"].append(
+        self.state.globals["canary_list"].append(
             {
                 "addr": self.state.solver.eval(canary_addr),
                 "expected": 0xDEADBEEF,

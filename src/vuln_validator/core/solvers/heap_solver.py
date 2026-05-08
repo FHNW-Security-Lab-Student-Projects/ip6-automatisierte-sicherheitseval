@@ -15,4 +15,4 @@ class HeapOverflowSolver(BaseMemorySolver):
         project.hook_symbol("malloc", MyFakeMalloc())
 
     def _place_buffers_and_canaries(self, state, project, function_args):
-        return [], []
+        return []

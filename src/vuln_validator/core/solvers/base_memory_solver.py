@@ -97,7 +97,7 @@ class BaseMemorySolver(BaseSolver):
     def _place_buffers_and_canaries(self, state, project, function_args):
         """
         Has to be implemented by the child solver.
-        Return: (symbolic_args, canaries)
+        Return: (symbolic_args)
         """
         pass
 
@@ -106,11 +106,8 @@ class BaseMemorySolver(BaseSolver):
         for state in chain(
             simgr.active, simgr.deadended, simgr.errored, simgr.unconstrained
         ):
-            if "heap_canary_list" in state.globals:
-                for chunk in state.globals["heap_canary_list"]:
-                    canaries.append(chunk)
-            if "stack_canary_list" in state.globals:
-                for chunk in state.globals["stack_canary_list"]:
+            if "canary_list" in state.globals:
+                for chunk in state.globals["canary_list"]:
                     canaries.append(chunk)
         return canaries
 

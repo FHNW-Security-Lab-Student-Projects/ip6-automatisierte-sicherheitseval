@@ -62,45 +62,30 @@ class StackOverflowSolver(BaseMemorySolver):
                             canary_addr_underflow = buffer_addr - padding_size
                             canary_value = 0x41414141  # 'AAAA' in hex (4 bytes)
 
-                            # claripy.BVV(value, size_in_bits)
-                            state.memory.store(
-                                canary_addr,
-                                claripy.BVV(canary_value, padding_size * 8),
-                                endness=project.arch.memory_endness,
-                            )
-                            state.globals["canary_list"].append(
-                                {
-                                    "addr": canary_addr,
-                                    "expected": canary_value,
-                                    "arg_idx": i,
-                                    "padding_size": padding_size,
-                                }
-                            )
-                            logger.debug(
-                                "Placed overflow canary for argument %d at address: 0x%x with expected value: 0x%x",
-                                i,
-                                canary_addr,
-                                canary_value,
-                            )
-                            state.memory.store(
-                                canary_addr_underflow,
-                                claripy.BVV(canary_value, padding_size * 8),
-                                endness=project.arch.memory_endness,
-                            )
-                            state.globals["canary_list"].append(
-                                {
-                                    "addr": canary_addr_underflow,
-                                    "expected": canary_value,
-                                    "arg_idx": i,
-                                    "padding_size": padding_size,
-                                }
-                            )
-                            logger.debug(
-                                "Placed underflow canary for argument %d at address: 0x%x with expected value: 0x%x",
-                                i,
-                                canary_addr_underflow,
-                                canary_value,
-                            )
+                            for addr, kind in (
+                                (canary_addr, "overflow"),
+                                (canary_addr_underflow, "underflow"),
+                            ):
+                                state.memory.store(
+                                    addr,
+                                    claripy.BVV(canary_value, padding_size * 8),
+                                    endness=project.arch.memory_endness,
+                                )
+                                state.globals["canary_list"].append(
+                                    {
+                                        "addr": addr,
+                                        "expected": canary_value,
+                                        "arg_idx": i,
+                                        "padding_size": padding_size,
+                                    }
+                                )
+                                logger.debug(
+                                    "Placed %s canary for argument %d at address: 0x%x with expected value: 0x%x",
+                                    kind,
+                                    i,
+                                    addr,
+                                    canary_value,
+                                )
 
                             self._write_to_register(regs, state, i, buffer_addr)
                 else:

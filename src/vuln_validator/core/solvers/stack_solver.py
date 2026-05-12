@@ -25,6 +25,20 @@ class StackOverflowSolver(BaseMemorySolver):
             state.globals["canary_list"] = []
 
         if function_args:
+            max_size = max(
+                (
+                    arg.get("size", 64)
+                    for arg in function_args
+                    if isinstance(arg, dict) and arg.get("type") == "symbolic_pointer"
+                ),
+                default=64,
+            )
+            if hasattr(state, "libc"):
+                bound = max_size + 1
+                state.libc.max_str_len = max(state.libc.max_str_len, bound)
+                state.libc.buf_symbolic_bytes = max(
+                    state.libc.buf_symbolic_bytes, bound
+                )
             logger.info(
                 "Placing buffers and canaries for function arguments: %s", function_args
             )

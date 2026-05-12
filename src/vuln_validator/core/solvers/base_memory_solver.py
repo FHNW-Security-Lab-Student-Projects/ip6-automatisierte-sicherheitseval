@@ -85,6 +85,14 @@ class BaseMemorySolver(BaseSolver):
             simgr.step(n=step_size)
             step_count += step_size
 
+        if len(simgr.errored) > 0:
+            logger.warning(
+                "Ignoring %d errored states (not inspectable here).",
+                len(simgr.errored),
+            )
+            for err in simgr.errored:
+                logger.warning("Errored state reason: %s", err.error)
+
         # 5. Collect canaries from all states (heap/stack)
         canaries = self._collect_canaries(simgr)
 
@@ -103,9 +111,7 @@ class BaseMemorySolver(BaseSolver):
 
     def _collect_canaries(self, simgr):
         canaries = []
-        for state in chain(
-            simgr.active, simgr.deadended, simgr.errored, simgr.unconstrained
-        ):
+        for state in chain(simgr.active, simgr.deadended, simgr.unconstrained):
             if "canary_list" in state.globals:
                 for chunk in state.globals["canary_list"]:
                     canaries.append(chunk)
@@ -119,21 +125,18 @@ class BaseMemorySolver(BaseSolver):
         canary_hit = False
 
         # Check 1: Symbolic RIP (Control Flow Hijack)
-        for state in chain(simgr.errored, simgr.unconstrained):
+        for state in simgr.unconstrained:
             if state.solver.symbolic(state.regs.rip):
-                state_type = "errored" if state in simgr.errored else "unconstrained"
                 vuln_data = self._get_cause(state, symbolic_args, symbolic_stdin)
-                vuln_data["state_type"] = state_type
+                vuln_data["state_type"] = "unconstrained"
                 vuln_data["description"] = (
-                    f"{state_type.capitalize()} state with symbolic RIP detected."
+                    "Unconstrained state with symbolic RIP detected."
                 )
                 evidence_list.append(vuln_data)
                 found_vuln = True
 
         # Check 2: Canaries (Data Corruption)
-        for state in chain(
-            simgr.active, simgr.deadended, simgr.unconstrained, simgr.errored
-        ):
+        for state in chain(simgr.active, simgr.deadended, simgr.unconstrained):
             if canary_hit:
                 break
             for c in canaries:

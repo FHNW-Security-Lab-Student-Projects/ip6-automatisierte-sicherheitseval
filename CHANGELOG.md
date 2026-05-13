@@ -1,3 +1,46 @@
+## [0.4.0] - 2026-05-13
+
+### 🚀 Features
+
+- First working poc with heap overflow
+- Underflow canary for heap overflow
+- Refactor symbolic arg placement (new for heapsolver) and keep stack canaries separate
+
+### 🐛 Bug Fixes
+
+- Write canary as little endian
+- Don't analyze errored state
+- Check if malloc exists
+- Raise libc string limits for symbolic pointers
+
+### 🚜 Refactor
+
+- Add BaseMemorySolver
+- Put hooks in separate file
+- Move canary collection to solve
+- Use state.globals also for stack canaries
+- Use only one canary_list
+- Move general tesets to test_base_memory_solver
+- Remove duplicate code
+
+### 📚 Documentation
+
+- Add first draft of Sequenzdiagramm
+
+### ⚡ Performance
+
+- Reduce solver requests and unnecessary loop
+
+### 🧪 Testing
+
+- Tests for understanding angr heap overflow
+- Understanding heap overflow with symbolic input
+- Add tests for HeapOverflowSolver
+
+### ⚙️ Miscellaneous Tasks
+
+- Add test binaries for heap overflow
+- *(merge)* Merge pull request #5 from FHNW-Security-Lab-Student-Projects/dev
 ## [0.3.0] - 2026-04-23
 
 ### 🚀 Features
@@ -42,6 +85,7 @@
 - Unified result (symbolic rip and canary)
 - Remove unnecessary logs and code
 - *(merge)* Merge pull request #4 from FHNW-Security-Lab-Student-Projects/dev
+- Update changelog
 ## [0.2.0] - 2026-04-10
 
 ### 🚀 Features

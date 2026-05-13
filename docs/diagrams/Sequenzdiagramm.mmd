@@ -1,0 +1,30 @@
+sequenceDiagram
+    participant User as User
+    participant LLM as LLM (Claude)
+    participant MCP as MCP Client
+    participant Server as MCP Server (Validator)
+    participant Solver as Solver Engine (angr)
+    participant Binary as Target Binary
+
+    Note over User, Binary: Phase 1: Hypothesis Generation
+    User-->>LLM: Prompt + Path to Source (file/folder)
+    LLM->>LLM: Read Code & Form Hypothesis<br/>(via Filesystem MCP / Native Tools)
+    Note over LLM: Identify vuln. function & args
+
+    Note over User, Binary: Phase 2: Validation Request
+    LLM->>MCP: Tool Call: validate_vulnerability()
+    MCP->>Server: Forward Request (Target, Args)
+    Server->>Server: Validate Input (Schema)
+
+    Note over User, Binary: Phase 3: Symbolic Execution
+    Server->>Solver: Start Symbolic Execution
+    Solver->>Binary: Simulate Execution (Symbolic State)
+    Solver->>Solver: Check for Crash / Canary Hit
+
+    Note over User, Binary: Phase 4: Evidence & Reporting
+    Solver-->>Solver: Extract Input Hex
+    Solver-->>Server: Result + Evidence
+    Server-->>MCP: JSON Response
+    MCP-->>LLM: Structured Evidence
+    LLM->>LLM: Generate Report based on Evidence
+    LLM-->>User: Final Security Report

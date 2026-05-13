@@ -25,4 +25,5 @@ class HeapOverflowSolver(BaseMemorySolver):
         logger.debug("No malloc symbol/PLT found. Skipping malloc hook.")
 
     def _place_buffers_and_canaries(self, state, project, function_args):
-        return []
+        symbolic_args, _ = self._place_symbolic_args(state, project, function_args)
+        return symbolic_args

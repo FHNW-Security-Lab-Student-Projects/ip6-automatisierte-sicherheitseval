@@ -32,7 +32,7 @@ class BaseMemorySolver(BaseSolver):
         # 1. Environment Setup
         self._setup_environment(project)
 
-        # 1. Function Address Resolution
+        # 2. Function Address Resolution
         try:
             symbol = project.loader.main_object.get_symbol(target_function)
             if symbol is None:
@@ -50,7 +50,7 @@ class BaseMemorySolver(BaseSolver):
                 f"Analysis aborted: Target function '{target_function}' does not exist or has no symbol table entry.",
             )
 
-        # 2. Initial State Setup
+        # 3. Initial State Setup
         symbolic_stdin = claripy.BVS("my_input", 512 * 8)
         state = project.factory.call_state(addr, stdin=symbolic_stdin)
         logger.info(
@@ -59,7 +59,7 @@ class BaseMemorySolver(BaseSolver):
             addr,
         )
 
-        # 3. Specific setup delegation (The child solver does the magic)
+        # 4. Specific setup delegation (The child solver does the magic)
         symbolic_args = self._place_buffers_and_canaries(state, project, function_args)
 
         if symbolic_args is None:  # Error during buffer/canary setup
@@ -67,7 +67,7 @@ class BaseMemorySolver(BaseSolver):
                 False, target_function, [], "Failed to setup buffers."
             )
 
-        # 4. Simulation Loop
+        # 5. Simulation Loop
         simgr = project.factory.simulation_manager(state)
         step_count = 0
         max_steps = 500
@@ -93,10 +93,10 @@ class BaseMemorySolver(BaseSolver):
             for err in simgr.errored:
                 logger.warning("Errored state reason: %s", err.error)
 
-        # 5. Collect canaries from all states (heap/stack)
+        # 6. Collect canaries from all states (heap/stack)
         canaries = self._collect_canaries(simgr)
 
-        # 6. Evaluation of results
+        # 7. Evaluation of results
         return self._evaluate_results(
             simgr, canaries, symbolic_args, symbolic_stdin, target_function
         )
@@ -108,6 +108,84 @@ class BaseMemorySolver(BaseSolver):
         Return: (symbolic_args)
         """
         pass
+
+    def _place_symbolic_args(
+        self,
+        state,
+        project,
+        function_args,
+        *,
+        base_offset: int = 0x80,
+        buffer_padding: int = 0x0,
+    ):
+        symbolic_args = []
+        buffer_infos = []
+        current_offset = base_offset
+        regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
+        has_pointer = False
+        max_size = 0
+
+        if function_args:
+            logger.info(
+                "Placing buffers for function arguments: %s",
+                function_args,
+            )
+            rsp = state.solver.eval(state.regs.rsp)
+            logger.debug("Initial RSP value: 0x%x", rsp)
+
+            for i, arg in enumerate(function_args):
+                logger.debug("Processing argument %d: %s", i, arg)
+                if isinstance(arg, dict):
+                    arg_type = arg.get("type")
+                    if arg_type == "concrete":
+                        value = arg.get("value", 0)
+                        self._write_to_register(regs, state, i, value)
+                    else:
+                        size = arg.get("size", 64)
+                        sym_var = claripy.BVS(f"arg_{i}", size * 8)
+                        symbolic_args.append(sym_var)
+
+                        if arg_type == "symbolic_pointer":
+                            has_pointer = True
+                            max_size = max(max_size, size)
+
+                            pad = buffer_padding
+                            current_offset += size + pad
+                            buffer_addr = rsp - current_offset
+                            if pad:
+                                current_offset += pad
+
+                            logger.debug(
+                                "Storing symbolic argument %d at address: 0x%x",
+                                i,
+                                buffer_addr,
+                            )
+                            state.memory.store(buffer_addr, sym_var)
+
+                            buffer_infos.append(
+                                {"addr": buffer_addr, "size": size, "arg_idx": i}
+                            )
+
+                            self._write_to_register(regs, state, i, buffer_addr)
+                else:
+                    self._write_to_register(regs, state, i, arg)
+
+            if has_pointer and hasattr(state, "libc"):
+                bound = max_size + 1
+                state.libc.max_str_len = max(state.libc.max_str_len, bound)
+                state.libc.buf_symbolic_bytes = max(
+                    state.libc.buf_symbolic_bytes, bound
+                )
+
+        return symbolic_args, buffer_infos
+
+    def _write_to_register(self, regs, state, i, buffer_addr):
+        if i < len(regs):
+            setattr(state.regs, regs[i], buffer_addr)
+        else:
+            logger.warning(
+                "More than 6 arguments provided. Additional arguments beyond the 6th are not supported in this implementation."
+            )
 
     def _collect_canaries(self, simgr):
         canaries = []

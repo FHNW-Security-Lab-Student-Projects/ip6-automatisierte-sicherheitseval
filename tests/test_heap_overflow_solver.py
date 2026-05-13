@@ -16,6 +16,12 @@ TEST_CASES = [
         "args": [{"type": "symbolic_pointer", "size": 64}],
         "should_find": True,
     },
+    {
+        "binary": "tests/fixtures/heap_overflow/calloc_vuln",
+        "func": "main",
+        "args": None,
+        "should_find": True,
+    },
     # --- Safe binaries ---
     {
         "binary": "tests/fixtures/common/heap_safe_strict",

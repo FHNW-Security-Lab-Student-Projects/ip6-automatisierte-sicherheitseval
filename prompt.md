@@ -32,5 +32,6 @@ Follow this strict procedure:
    - Base your final conclusion SOLELY on the response from the `validate_vulnerability` tool.
    - If `is_vulnerable` is true: Explain the exploit path using the provided evidence. Show the input hex that triggers the issue.
    - If false: State that validation found no evidence. Do not speculate based on your initial hypothesis.
+   - Always include the exact location of the issue as `path:line` and quote the vulnerable line.
 
 If you understand these instructions, acknowledge them and proceed with the analysis of the attached code.

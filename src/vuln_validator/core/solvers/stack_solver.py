@@ -20,28 +20,19 @@ class StackOverflowSolver(BaseMemorySolver):
         current_offset = 0x80  # in bytes (128 bytes)
         padding_size = 0x4  # in bytes (4 bytes for canary)
         regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
+        has_pointer = False
+        max_size = 0
 
         if "canary_list" not in state.globals:
             state.globals["canary_list"] = []
 
         if function_args:
-            max_size = max(
-                (
-                    arg.get("size", 64)
-                    for arg in function_args
-                    if isinstance(arg, dict) and arg.get("type") == "symbolic_pointer"
-                ),
-                default=64,
-            )
-            if hasattr(state, "libc"):
-                bound = max_size + 1
-                state.libc.max_str_len = max(state.libc.max_str_len, bound)
-                state.libc.buf_symbolic_bytes = max(
-                    state.libc.buf_symbolic_bytes, bound
-                )
             logger.info(
                 "Placing buffers and canaries for function arguments: %s", function_args
             )
+            rsp = state.solver.eval(state.regs.rsp)
+            logger.debug("Initial RSP value: 0x%x", rsp)
+
             for i, arg in enumerate(function_args):
                 logger.debug("Processing argument %d: %s", i, arg)
                 if isinstance(arg, dict):
@@ -57,13 +48,13 @@ class StackOverflowSolver(BaseMemorySolver):
                         sym_var = claripy.BVS(f"arg_{i}", size * 8)
                         symbolic_args.append(sym_var)
                         if arg_type == "symbolic_pointer":
+                            has_pointer = True
+                            max_size = max(max_size, size)
                             # Increment offset for argument
                             current_offset += (
                                 size + padding_size
                             )  # space for argument + overflow canary
-                            buffer_addr = (
-                                state.solver.eval(state.regs.rsp) - current_offset
-                            )
+                            buffer_addr = rsp - current_offset
                             current_offset += padding_size  # space for underflow canary
                             logger.debug(
                                 "Storing symbolic argument %d at address: 0x%x",
@@ -105,6 +96,16 @@ class StackOverflowSolver(BaseMemorySolver):
                 else:
                     # Treat as concrete value (Fallback)
                     self._write_to_register(regs, state, i, arg)
+
+            if has_pointer:
+                # Ensure the libc plugin is aware of the maximum symbolic buffer size to prevent it from optimizing away symbolic memory accesses
+                if hasattr(state, "libc"):
+                    bound = max_size + 1
+                    state.libc.max_str_len = max(state.libc.max_str_len, bound)
+                    # This is a bit of a hack to ensure that the symbolic buffers we place are not optimized away by the libc plugin. By setting buf_symbolic_bytes to a value larger than any symbolic buffer we create, we can prevent the plugin from treating those buffers as concrete.
+                    state.libc.buf_symbolic_bytes = max(
+                        state.libc.buf_symbolic_bytes, bound
+                    )
 
         return symbolic_args
 

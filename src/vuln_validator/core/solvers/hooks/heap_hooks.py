@@ -49,7 +49,7 @@ class BaseFakeHeapAlloc(angr.SimProcedure):
         ret_addr = canary_addr_underflow + self.CANARY_SIZE
         canary_addr_overflow = ret_addr + concrete_size
 
-        # 4. Place Canaries (Underflow & Overflow)
+        # 4. Place Canaries (Underflow and Overflow)
         for addr, kind in (
             (canary_addr_overflow, "overflow"),
             (canary_addr_underflow, "underflow"),
@@ -103,6 +103,9 @@ class MyFakeMalloc(BaseFakeHeapAlloc):
         # malloc does not zero-initialize
         pass
 
+    def run(self, size):
+        return super().run(size)
+
 
 class MyFakeCalloc(BaseFakeHeapAlloc):
     """
@@ -132,3 +135,6 @@ class MyFakeCalloc(BaseFakeHeapAlloc):
         self.state.memory.store(
             addr, claripy.BVV(0, size * 8), endness=self.state.arch.memory_endness
         )
+
+    def run(self, nmemb, size):
+        return super().run(nmemb, size)

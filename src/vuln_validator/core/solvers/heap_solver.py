@@ -1,6 +1,7 @@
 from .base_memory_solver import BaseMemorySolver
 from .hooks.heap_hooks import MyFakeMalloc
 from .hooks.heap_hooks import MyFakeCalloc
+from .hooks.heap_hooks import MyFakeAlignedAlloc
 import logging
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,7 @@ class HeapOverflowSolver(BaseMemorySolver):
         hooks_to_install = {
             "malloc": MyFakeMalloc,
             "calloc": MyFakeCalloc,
+            "aligned_alloc": MyFakeAlignedAlloc,
         }
 
         for func_name, hook_class in hooks_to_install.items():

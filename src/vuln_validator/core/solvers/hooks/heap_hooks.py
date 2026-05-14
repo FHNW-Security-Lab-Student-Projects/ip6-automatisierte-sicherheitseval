@@ -107,6 +107,86 @@ class MyFakeMalloc(BaseFakeHeapAlloc):
         return super().run(size)
 
 
+class MyFakeAlignedAlloc(BaseFakeHeapAlloc):
+    """
+    Hook for aligned_alloc(alignment, size).
+    Ensures the returned address is aligned to the specified boundary.
+    """
+
+    def _get_allocation_size(self, *args):
+        # aligned_alloc takes two arguments: alignment, size
+        if len(args) < 2:
+            return 0
+
+        # alignment = args[0], size = args[1]
+        return args[1]
+
+    def run(self, alignment, size):
+        # 1. Handle symbolic arguments (similar to calloc)
+        if self.state.solver.symbolic(alignment) or self.state.solver.symbolic(size):
+            logger.warning("aligned_alloc called with symbolic args. Using fallbacks.")
+            concrete_alignment = 16
+            concrete_size = 256
+        else:
+            concrete_alignment = self.state.solver.eval(alignment)
+            concrete_size = self.state.solver.eval(size)
+
+        # 2. Initialize Globals
+        if "heap_ptr" not in self.state.globals:
+            self.state.globals["heap_ptr"] = self.HEAP_START
+            self.state.globals["canary_list"] = []
+
+        # 3. Calculate Raw Address
+        raw_addr = (
+            self.state.globals["heap_ptr"] + self.CANARY_SIZE
+        )  # Start after underflow canary
+
+        # 4. ALIGNMENT LOGIC: Round up raw_addr to the next multiple of alignment
+        concrete_raw = self.state.solver.eval(raw_addr)
+
+        if concrete_raw % concrete_alignment == 0:
+            concrete_ret_addr = concrete_raw
+        else:
+            concrete_ret_addr = (
+                (concrete_raw // concrete_alignment) + 1
+            ) * concrete_alignment
+
+        ret_addr = claripy.BVV(concrete_ret_addr, 64)
+
+        # 5. Calculate Canary Addresses based on the ALIGNED address
+        # Layout: [Gap/Unused] [Underflow Canary] [User Data] [Overflow Canary]
+        canary_addr_underflow = ret_addr - self.CANARY_SIZE  # Directly before user data
+        canary_addr_overflow = ret_addr + concrete_size
+
+        # 6. Place Canaries (Manual implementation to handle the specific layout)
+        for addr, kind in (
+            (canary_addr_overflow, "overflow"),
+            (canary_addr_underflow, "underflow"),
+        ):
+            self.state.memory.store(
+                addr,
+                claripy.BVV(self.CANARY_VALUE, self.CANARY_SIZE * 8),
+                endness=self.state.arch.memory_endness,
+            )
+            concrete_addr = self.state.solver.eval(addr)
+            self.state.globals["canary_list"].append(
+                {
+                    "addr": concrete_addr,
+                    "expected": self.CANARY_VALUE,
+                    "padding_size": self.CANARY_SIZE,
+                    "source": "aligned_alloc_hook",
+                    "kind": kind,
+                }
+            )
+            logger.debug("aligned_alloc: Placed %s canary at 0x%x", kind, concrete_addr)
+
+        # 7. Advance Heap Pointer
+        next_ptr = canary_addr_overflow + self.CANARY_SIZE
+        self.state.globals["heap_ptr"] = next_ptr
+
+        return ret_addr
+
+
 class MyFakeCalloc(BaseFakeHeapAlloc):
     """
     Hook for calloc(nmemb, size).

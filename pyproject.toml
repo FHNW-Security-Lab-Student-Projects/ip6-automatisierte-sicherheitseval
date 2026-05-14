@@ -13,6 +13,7 @@ dependencies = [
     "ipython>=9.11.0",
     "mcp[cli]>=1.26.0",
     "monkeyhex>=1.7.4",
+    "pyelftools>=0.32",
     "pytest>=9.0.2",
     "unicorn>=2.1.4",
 ]

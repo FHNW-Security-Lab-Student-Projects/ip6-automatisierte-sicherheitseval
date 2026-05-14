@@ -566,6 +566,7 @@ dependencies = [
     { name = "ipython" },
     { name = "mcp", extra = ["cli"] },
     { name = "monkeyhex" },
+    { name = "pyelftools" },
     { name = "pytest" },
     { name = "unicorn" },
 ]
@@ -583,6 +584,7 @@ requires-dist = [
     { name = "ipython", specifier = ">=9.11.0" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.26.0" },
     { name = "monkeyhex", specifier = ">=1.7.4" },
+    { name = "pyelftools", specifier = ">=0.32" },
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "unicorn", specifier = ">=2.1.4" },
 ]

@@ -22,6 +22,12 @@ TEST_CASES = [
         "args": None,
         "should_find": True,
     },
+    {
+        "binary": "tests/fixtures/heap_overflow/aligned_alloc_heap_overflow",
+        "func": "main",
+        "args": None,
+        "should_find": True,
+    },
     # --- Safe binaries ---
     {
         "binary": "tests/fixtures/common/heap_safe_strict",

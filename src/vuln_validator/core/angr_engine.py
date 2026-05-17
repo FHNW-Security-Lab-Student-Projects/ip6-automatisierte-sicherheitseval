@@ -27,7 +27,7 @@ class AngrAnalyzer:
             logger.error(f"Provided path '{path}' does not exist.")
             raise FileNotFoundError(f"Provided path '{path}' does not exist.")
 
-        if path.suffix in [".c"]:  # TODO Erweitern
+        if path.suffix in [".c", ".cpp"]:  # TODO Erweitern
             binary_candidate = path.with_suffix("")
             if binary_candidate.exists():
                 logger.info(

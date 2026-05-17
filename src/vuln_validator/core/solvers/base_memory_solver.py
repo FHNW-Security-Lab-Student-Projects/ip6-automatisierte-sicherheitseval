@@ -38,7 +38,11 @@ class BaseMemorySolver(BaseSolver):
         try:
             symbol = project.loader.main_object.get_symbol(target_function)
             if symbol is None:
-                raise KeyError
+                for sym in project.loader.main_object.symbols:
+                    if target_function in sym.name:
+                        symbol = sym
+                if symbol is None:
+                    raise KeyError
             addr = project.kb.functions[symbol.rebased_addr].addr
             logger.debug(
                 "Target function '%s' found at address: 0x%x", target_function, addr

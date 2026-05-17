@@ -25,6 +25,20 @@ uv sync
 uv run python -c "import vuln_validator; print('ok')"
 ```
 
+## Binary compilation (Linux)
+For reliable exploit analysis, binaries **must** be compiled without protections using the flags below.
+
+**C**
+```bash
+gcc ./binary.c -o binary -fno-stack-protector -z execstack -no-pie -g
+```
+
+**C++**
+```bash
+g++ ./binary.cpp -o ./binary -fno-stack-protector -z execstack -fno-exceptions -fno-rtti -no-pie -g
+```
+
+
 ## Claude Desktop integration (Windows)
 For Claude to bei able to read and analyze your source-files, MCP-Server musst be configured.
 

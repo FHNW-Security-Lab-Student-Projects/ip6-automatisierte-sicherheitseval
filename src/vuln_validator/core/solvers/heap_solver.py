@@ -23,6 +23,8 @@ class HeapOverflowSolver(BaseMemorySolver):
             "malloc": MyFakeMalloc,
             "calloc": MyFakeCalloc,
             "aligned_alloc": MyFakeAlignedAlloc,
+            "_Znwm": MyFakeMalloc,  # operator new
+            "_Znam": MyFakeMalloc,  # operator new[]
         }
 
         for func_name, hook_class in hooks_to_install.items():

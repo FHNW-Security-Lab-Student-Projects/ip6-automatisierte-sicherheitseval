@@ -28,6 +28,12 @@ TEST_CASES = [
         "args": None,
         "should_find": True,
     },
+    {
+        "binary": "tests/fixtures/c++/heap_overflow",
+        "func": "process_input",
+        "args": None,
+        "should_find": True,
+    },
     # --- Safe binaries ---
     {
         "binary": "tests/fixtures/common/heap_safe_strict",

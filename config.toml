@@ -1,0 +1,6 @@
+[solver.base_memory]
+# Maximale Anzahl step()-Aufrufe
+max_steps = 100
+
+# Schrittweite pro step()
+step_size = 1

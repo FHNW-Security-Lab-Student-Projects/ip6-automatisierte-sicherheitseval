@@ -7,6 +7,7 @@ import claripy
 from itertools import chain
 from typing import List, Dict, Any
 import logging
+from ...utils.config_loader import get_base_memory_solver_config
 
 logger = logging.getLogger(__name__)
 
@@ -79,8 +80,14 @@ class BaseMemorySolver(BaseSolver):
         # 5. Simulation Loop
         simgr = project.factory.simulation_manager(state)
         step_count = 0
-        max_steps = 500
-        step_size = 1
+        solver_cfg = get_base_memory_solver_config()
+        max_steps = solver_cfg["max_steps"]
+        step_size = solver_cfg["step_size"]
+        logger.debug(
+            "Config: max_steps=%d, step_size=%d",
+            max_steps,
+            step_size,
+        )
 
         while len(simgr.active) > 0 and step_count < max_steps:
             if len(simgr.unconstrained) > 0 or len(simgr.errored) > 0:

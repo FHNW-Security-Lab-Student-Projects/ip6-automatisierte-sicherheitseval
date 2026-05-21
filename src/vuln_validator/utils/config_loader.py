@@ -23,7 +23,12 @@ _DEFAULTS: Dict[str, Any] = {
         "heap": {
             "heap_start": 0x600000,
         },
-    }
+    },
+    "analyzer": {
+        "auto_stop_on_first_found": False,
+        "specific_stop_on_first_found": True,
+        "specific_continue_on_no_find": True,
+    },
 }
 
 _CONFIG_CACHE: Optional[Dict[str, Any]] = None
@@ -49,6 +54,13 @@ def _coerce_positive_int(value: Any, default: int, name: str) -> int:
             "Invalid %s=%r in config. Using default %d.", name, value, default
         )
         return default
+
+
+def _coerce_bool(value: Any, default: bool, name: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    logger.warning("Invalid %s=%r in config. Using default %s.", name, value, default)
+    return default
 
 
 def _get_nested(d: Dict[str, Any], path: tuple[str, ...], default: Any) -> Any:
@@ -87,18 +99,19 @@ def load_config() -> Dict[str, Any]:
     return _CONFIG_CACHE
 
 
-def _build_solver_config(
-    section_name: str, specs: list[tuple[str, tuple[str, ...], Any]]
+def _build_config(
+    root_path: tuple[str, ...], specs: list[tuple[str, tuple[str, ...], Any]]
 ) -> Dict[str, Any]:
     cfg = load_config()
-    defaults = _DEFAULTS["solver"].get(section_name, {})
-    section = cfg.get("solver", {}).get(section_name, {})
+    defaults = _get_nested(_DEFAULTS, root_path, {})
+    section = _get_nested(cfg, root_path, {})
 
     result: Dict[str, Any] = {}
+    name_prefix = ".".join(root_path)
     for out_key, path, coerce in specs:
         default_val = _get_nested(defaults, path, None)
         value = _get_nested(section, path, default_val)
-        name = f"solver.{section_name}." + ".".join(path)
+        name = f"{name_prefix}." + ".".join(path)
         result[out_key] = coerce(value, default_val, name)
 
     return result
@@ -114,11 +127,28 @@ def get_base_memory_solver_config() -> Dict[str, Any]:
             _coerce_positive_int,
         ),
     ]
-    return _build_solver_config("base_memory", specs)
+    return _build_config(("solver", "base_memory"), specs)
 
 
 def get_heap_hook_config() -> Dict[str, Any]:
     specs = [
         ("heap_start", ("heap_start",), _coerce_positive_int),
     ]
-    return _build_solver_config("heap", specs)
+    return _build_config(("solver", "heap"), specs)
+
+
+def get_analyzer_config() -> Dict[str, Any]:
+    specs = [
+        ("auto_stop_on_first_found", ("auto_stop_on_first_found",), _coerce_bool),
+        (
+            "specific_stop_on_first_found",
+            ("specific_stop_on_first_found",),
+            _coerce_bool,
+        ),
+        (
+            "specific_continue_on_no_find",
+            ("specific_continue_on_no_find",),
+            _coerce_bool,
+        ),
+    ]
+    return _build_config(("analyzer",), specs)

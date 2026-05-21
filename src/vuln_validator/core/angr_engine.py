@@ -6,6 +6,7 @@ from typing import Dict, Any, List
 from .solvers.base_solver import BaseSolver
 from .solvers.stack_solver import StackOverflowSolver
 from .solvers.heap_solver import HeapOverflowSolver
+from ..utils.config_loader import get_analyzer_config
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,15 @@ class AngrAnalyzer:
 
         execution_plan = self._build_execution_plan(vuln_type)
 
+        analyzer_cfg = get_analyzer_config()
+        auto_stop_on_first_found = analyzer_cfg["auto_stop_on_first_found"]
+        specific_stop_on_first_found = analyzer_cfg["specific_stop_on_first_found"]
+        specific_continue_on_no_find = analyzer_cfg["specific_continue_on_no_find"]
+
+        is_auto_mode = vuln_type == "auto" or not any(
+            s.vulnerability_type == vuln_type for s in execution_plan
+        )
+
         master_result = {
             "requested_type": vuln_type,
             "analyzed_types": [],
@@ -125,17 +135,29 @@ class AngrAnalyzer:
 
                 master_result["messages"].append(result.get("message", ""))
 
-                # When a specific type is requested, we can stop after the first match. For 'auto', we want to run all solvers to gather comprehensive findings.
-                if (
-                    vuln_type != "auto"
-                    and index == 0
-                    and result.get("is_vulnerable")
-                    and solver.vulnerability_type == vuln_type
-                ):
-                    logger.info(
-                        f"Stopping analysis after first positive match for requested type '{vuln_type}' from solver '{solver.vulnerability_type}'."
-                    )
-                    break
+                # Stopping logic driven by config
+                if is_auto_mode:
+                    if result.get("is_vulnerable") and auto_stop_on_first_found:
+                        logger.info(
+                            "Stopping analysis after first positive match in auto mode."
+                        )
+                        break
+                else:
+                    if index == 0 and solver.vulnerability_type == vuln_type:
+                        if result.get("is_vulnerable") and specific_stop_on_first_found:
+                            logger.info(
+                                "Stopping analysis after positive match for requested type '%s'.",
+                                vuln_type,
+                            )
+                            break
+                        if (not result.get("is_vulnerable")) and (
+                            not specific_continue_on_no_find
+                        ):
+                            logger.info(
+                                "Stopping analysis after no match for requested type '%s'.",
+                                vuln_type,
+                            )
+                            break
 
             except Exception as e:
                 logger.error(

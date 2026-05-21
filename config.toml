@@ -12,3 +12,13 @@ symbolic_stdin_bytes = 512
 [solver.heap]
 # Startadresse für Fake-Heap
 heap_start = 0x600000
+
+[analyzer]
+# Auto‑Mode: nach erstem Fund stoppen?
+auto_stop_on_first_found = false
+
+# Spezifischer Typ: bei Fund stoppen?
+specific_stop_on_first_found = true
+
+# Spezifischer Typ: nach keinem Fund weitere Solver ausführen?
+specific_continue_on_no_find = true

@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from vuln_validator.core.angr_engine import AngrAnalyzer
+from vuln_validator.core.angr_analyzer import AngrAnalyzer
 from vuln_validator.core.solvers.base_solver import BaseSolver
 
 

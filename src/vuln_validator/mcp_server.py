@@ -3,7 +3,7 @@ from typing import Literal, List, Any
 
 from vuln_validator.utils.logging_config import setup_logging
 
-from vuln_validator.core.angr_engine import AngrAnalyzer
+from vuln_validator.core.angr_analyzer import AngrAnalyzer
 from vuln_validator.utils.audit_logger import audit_log
 
 mcp = FastMCP("VulnValidator")

@@ -12,9 +12,17 @@ logger = logging.getLogger(__name__)
 _DEFAULTS: Dict[str, Any] = {
     "solver": {
         "base_memory": {
-            "max_steps": 500,
-            "step_size": 1,
-        }
+            "simulation": {
+                "max_steps": 500,
+                "step_size": 1,
+            },
+            "input": {
+                "symbolic_stdin_bytes": 512,
+            },
+        },
+        "heap": {
+            "heap_start": 0x600000,
+        },
     }
 }
 
@@ -43,15 +51,22 @@ def _coerce_positive_int(value: Any, default: int, name: str) -> int:
         return default
 
 
-def load_config(path: Optional[str] = None) -> Dict[str, Any]:
+def _get_nested(d: Dict[str, Any], path: tuple[str, ...], default: Any) -> Any:
+    cur: Any = d
+    for key in path:
+        if not isinstance(cur, dict) or key not in cur:
+            return default
+        cur = cur[key]
+    return cur
+
+
+def load_config() -> Dict[str, Any]:
     global _CONFIG_CACHE
     if _CONFIG_CACHE is not None:
         return _CONFIG_CACHE
 
     cfg = copy.deepcopy(_DEFAULTS)
-    cfg_path = (
-        Path(path) if path else Path(__file__).resolve().parents[3] / "config.toml"
-    )
+    cfg_path = Path(__file__).resolve().parents[3] / "config.toml"
 
     if not cfg_path.exists():
         logger.info("Config file not found at %s. Using defaults.", cfg_path)
@@ -72,20 +87,38 @@ def load_config(path: Optional[str] = None) -> Dict[str, Any]:
     return _CONFIG_CACHE
 
 
-def get_base_memory_solver_config(path: Optional[str] = None) -> Dict[str, int]:
-    cfg = load_config(path)
-    defaults = _DEFAULTS["solver"]["base_memory"]
-    section = cfg.get("solver", {}).get("base_memory", {})
+def _build_solver_config(
+    section_name: str, specs: list[tuple[str, tuple[str, ...], Any]]
+) -> Dict[str, Any]:
+    cfg = load_config()
+    defaults = _DEFAULTS["solver"].get(section_name, {})
+    section = cfg.get("solver", {}).get(section_name, {})
 
-    max_steps = _coerce_positive_int(
-        section.get("max_steps", defaults["max_steps"]),
-        defaults["max_steps"],
-        "solver.base_memory.max_steps",
-    )
-    step_size = _coerce_positive_int(
-        section.get("step_size", defaults["step_size"]),
-        defaults["step_size"],
-        "solver.base_memory.step_size",
-    )
+    result: Dict[str, Any] = {}
+    for out_key, path, coerce in specs:
+        default_val = _get_nested(defaults, path, None)
+        value = _get_nested(section, path, default_val)
+        name = f"solver.{section_name}." + ".".join(path)
+        result[out_key] = coerce(value, default_val, name)
 
-    return {"max_steps": max_steps, "step_size": step_size}
+    return result
+
+
+def get_base_memory_solver_config() -> Dict[str, Any]:
+    specs = [
+        ("max_steps", ("simulation", "max_steps"), _coerce_positive_int),
+        ("step_size", ("simulation", "step_size"), _coerce_positive_int),
+        (
+            "symbolic_stdin_bytes",
+            ("input", "symbolic_stdin_bytes"),
+            _coerce_positive_int,
+        ),
+    ]
+    return _build_solver_config("base_memory", specs)
+
+
+def get_heap_hook_config() -> Dict[str, Any]:
+    specs = [
+        ("heap_start", ("heap_start",), _coerce_positive_int),
+    ]
+    return _build_solver_config("heap", specs)

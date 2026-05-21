@@ -35,6 +35,10 @@ class BaseMemorySolver(BaseSolver):
         # 1. Environment Setup
         self._setup_environment(project)
 
+        # Load solver config
+        solver_cfg = get_base_memory_solver_config()
+        symbolic_stdin_bytes = solver_cfg["symbolic_stdin_bytes"]
+
         # 2. Function Address Resolution
         try:
             symbol = project.loader.main_object.get_symbol(target_function)
@@ -58,7 +62,7 @@ class BaseMemorySolver(BaseSolver):
             )
 
         # 3. Initial State Setup
-        symbolic_stdin = claripy.BVS("my_input", 512 * 8)
+        symbolic_stdin = claripy.BVS("my_input", symbolic_stdin_bytes * 8)
         state = project.factory.call_state(addr, stdin=symbolic_stdin)
         logger.info(
             "Initial state created for function '%s' at address 0x%x",
@@ -80,7 +84,6 @@ class BaseMemorySolver(BaseSolver):
         # 5. Simulation Loop
         simgr = project.factory.simulation_manager(state)
         step_count = 0
-        solver_cfg = get_base_memory_solver_config()
         max_steps = solver_cfg["max_steps"]
         step_size = solver_cfg["step_size"]
         logger.debug(

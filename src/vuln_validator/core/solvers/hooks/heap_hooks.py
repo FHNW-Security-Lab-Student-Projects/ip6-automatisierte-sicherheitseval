@@ -1,8 +1,12 @@
 import angr
 import claripy
 import logging
+from ....utils.config_loader import get_heap_hook_config
 
 logger = logging.getLogger(__name__)
+
+_HEAP_CFG = get_heap_hook_config()
+_HEAP_START_VALUE = _HEAP_CFG["heap_start"]
 
 
 class BaseFakeHeapAlloc(angr.SimProcedure):
@@ -12,7 +16,7 @@ class BaseFakeHeapAlloc(angr.SimProcedure):
     Memory initialization, and Heap pointer management.
     """
 
-    HEAP_START = claripy.BVV(0x600000, 64)
+    HEAP_START = claripy.BVV(_HEAP_START_VALUE, 64)
     CANARY_VALUE = 0xDEADBEEF
     CANARY_SIZE = 0x4
 

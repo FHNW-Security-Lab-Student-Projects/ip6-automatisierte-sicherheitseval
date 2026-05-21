@@ -1,6 +1,14 @@
-[solver.base_memory]
+[solver.base_memory.simulation]
 # Maximale Anzahl step()-Aufrufe
-max_steps = 100
+max_steps = 500
 
 # Schrittweite pro step()
 step_size = 1
+
+[solver.base_memory.input]
+# Größe von stdin in Bytes (symbolisch)
+symbolic_stdin_bytes = 512
+
+[solver.heap]
+# Startadresse für Fake-Heap
+heap_start = 0x600000

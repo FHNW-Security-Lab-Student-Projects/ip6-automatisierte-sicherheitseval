@@ -72,13 +72,17 @@ def _get_nested(d: Dict[str, Any], path: tuple[str, ...], default: Any) -> Any:
     return cur
 
 
+def _config_path() -> Path:
+    return Path(__file__).resolve().parents[3] / "config.toml"
+
+
 def load_config() -> Dict[str, Any]:
     global _CONFIG_CACHE
     if _CONFIG_CACHE is not None:
         return _CONFIG_CACHE
 
     cfg = copy.deepcopy(_DEFAULTS)
-    cfg_path = Path(__file__).resolve().parents[3] / "config.toml"
+    cfg_path = _config_path()
 
     if not cfg_path.exists():
         logger.info("Config file not found at %s. Using defaults.", cfg_path)

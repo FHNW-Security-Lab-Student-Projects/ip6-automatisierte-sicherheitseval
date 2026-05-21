@@ -42,6 +42,9 @@ g++ ./binary.cpp -o ./binary -fno-stack-protector -z execstack -fno-exceptions -
 ## Claude Desktop integration (Windows)
 For Claude to bei able to read and analyze your source-files, MCP-Server musst be configured.
 
+**Note:** Claude Desktop **Code** does **not** need the filesystem MCP server, only the `VulnValidator` MCP server.  
+The filesystem server is only required for **Claude Desktop Chat**.
+
 1. Locate config file:
    - Windows: Press Win + R, enter: %APPDATA%\Claude\claude_desktop_config.json
 
@@ -94,6 +97,17 @@ uv run python tests/mcp_client.py tests/fixtures/stack_overflow/gets_local.c vul
 
 uv run python tests/mcp_client.py tests/fixtures/stack_overflow/strcpy_pointer.c copy_input '[{"type": "symbolic_pointer", "size": 64}]'
 ```
+
+## Configuration
+The framework reads `config.toml` from the repository root.
+
+- `max_steps`: Upper bound on simulation steps (limits exploration time).
+- `step_size`: Steps per iteration (every iteration VulnValidator checks checks how many states are active/unconstrained/errored).
+- `symbolic_stdin_bytes`: Size of symbolic stdin buffer (too small may miss bugs).
+- `heap_start`: Start address for fake heap (change if it collides with mapped regions).
+- `auto_stop_on_first_found`: In `auto` mode, stop after first positive result.
+- `specific_stop_on_first_found`: For a specific type, stop when a vulnerability is found.
+- `specific_continue_on_no_find`: For a specific type, continue when no vulnerability is found.
 
 ## Developer
 

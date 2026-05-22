@@ -138,6 +138,3 @@ def test_validate_vulnerability_tool_with_source_code_but_no_binary() -> None:
     payload = json.loads(content_blocks[0].text)
     assert "error" in payload
     assert payload["error"] == "FileNotFound"
-
-
-# TODO: Mehr Testfälle (spezifisch stack_overflow, heap_overflow, format_string) mit verschiedenen Binärdateien, um die Genauigkeit und Robustheit der Analyse zu überprüfen.

@@ -70,6 +70,9 @@ class BaseMemorySolver(BaseSolver):
             addr,
         )
 
+        # Advance past prologue to find stable RSP for stack-based solvers
+        state = self._advance_past_prologue(project, state)
+
         # adjust dynamic libc limits from stack locals
         adjust_libc_limits_from_locals(state, project, addr)
 
@@ -235,3 +238,24 @@ class BaseMemorySolver(BaseSolver):
             "evidence": evidence,
             "message": message,
         }
+
+    def _advance_past_prologue(self, project, state, max_inst: int = 32):
+        prev_rsp = state.solver.eval(state.regs.rsp)
+        logger.info(
+            "Advancing past function prologue to find stable RSP. Initial RSP: 0x%x",
+            prev_rsp,
+        )
+
+        for _ in range(max_inst):
+            succ = project.factory.successors(state, num_inst=1)
+            if len(succ.successors) != 1:
+                break
+
+            state = succ.successors[0]
+            rsp = state.solver.eval(state.regs.rsp)
+            logger.debug("Current RSP: 0x%x", rsp)
+
+            if rsp + 0x8 < prev_rsp:
+                break
+
+        return state

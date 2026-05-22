@@ -1,6 +1,7 @@
 from .base_solver import BaseSolver
 from ._dwarf import adjust_libc_limits_from_locals
 from ._evaluation import evaluate_results
+from ._another_dwarf import get_struct_addr_from_dwarf
 from abc import abstractmethod
 import angr
 import claripy
@@ -23,8 +24,11 @@ class BaseMemorySolver(BaseSolver):
         project: angr.Project,
         target_function: str = None,
         function_args: List[Any] = None,
+        structs: List[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         logger.info("Running %s solver...", self.vulnerability_type)
+
+        structs = structs or []
 
         if not target_function:
             return self._build_result(False, None, [], "No target function specified.")
@@ -72,6 +76,8 @@ class BaseMemorySolver(BaseSolver):
 
         # Advance past prologue to find stable RSP for stack-based solvers
         state = self._advance_past_prologue(project, state)
+
+        struct_addresses = self._resolve_struct_addresses(state, project, addr, structs)
 
         # adjust dynamic libc limits from stack locals
         adjust_libc_limits_from_locals(state, project, addr)
@@ -125,6 +131,8 @@ class BaseMemorySolver(BaseSolver):
             symbolic_args,
             symbolic_stdin,
             target_function,
+            structs,
+            struct_addresses,
             self.vulnerability_type,
             self._build_result,
         )
@@ -143,7 +151,7 @@ class BaseMemorySolver(BaseSolver):
         project,
         function_args,
         *,
-        base_offset: int = 0x80,
+        base_offset: int = 0x80,  # because of redzone
         buffer_padding: int = 0x0,
     ):
         symbolic_args = []
@@ -259,3 +267,44 @@ class BaseMemorySolver(BaseSolver):
                 break
 
         return state
+
+    def _resolve_struct_addresses(self, state, project, func_addr, structs):
+        if not structs:
+            return []
+
+        all_struct_addresses = []
+        current_rbp = state.solver.eval(state.regs.rbp)
+
+        for struct in structs:
+            if isinstance(struct, dict):
+                struct_location = struct.get("location")
+                struct_name = struct.get("name")
+                if struct_location == "stack":
+                    struct_offset = get_struct_addr_from_dwarf(
+                        project, func_addr, struct_name, state
+                    )
+                    struct_addr = (
+                        current_rbp + struct_offset
+                    )  # struct_offset is negative!
+                    logger.debug(
+                        f"Resolved struct '{struct_name}' address: 0x{struct_addr:x}"
+                    )
+                    all_struct_addresses.append(struct_addr)
+                elif struct_location == "heap":
+                    logger.warning(
+                        f"Heap-based struct '{struct_name}' resolution not implemented. Skipping."
+                    )
+                elif struct_location == "pointer":
+                    logger.warning(
+                        f"Pointer-based struct '{struct_name}' resolution not implemented. Skipping."
+                    )
+                else:
+                    logger.warning(
+                        f"Unsupported struct location '{struct_location}' for struct '{struct_name}'. Skipping."
+                    )
+            else:
+                logger.warning(
+                    f"Invalid struct format: {struct}. Expected a dict with 'name' and 'location'. Skipping."
+                )
+
+        return all_struct_addresses

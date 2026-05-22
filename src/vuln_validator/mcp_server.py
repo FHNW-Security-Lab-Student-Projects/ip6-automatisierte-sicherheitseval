@@ -1,5 +1,5 @@
 from mcp.server.fastmcp import FastMCP
-from typing import List, Any
+from typing import List, Any, Dict
 
 from vuln_validator.utils.logging_config import setup_logging
 
@@ -44,6 +44,7 @@ def validate_vulnerability(
     target_path: str,
     target_function: str = None,
     function_args: List[Any] = None,
+    structs: List[Dict[str, Any]] = None,
     vulnerability_type: str = "auto",
 ) -> dict:
     """
@@ -64,7 +65,7 @@ def validate_vulnerability(
     try:
         angr_analyzer = AngrAnalyzer(target_path)
         result = angr_analyzer.run_analysis(
-            vulnerability_type, target_function, function_args
+            vulnerability_type, target_function, function_args, structs
         )
 
         return result

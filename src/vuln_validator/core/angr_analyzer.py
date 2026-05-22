@@ -85,6 +85,7 @@ class AngrAnalyzer:
         vuln_type: str = "auto",
         target_function: str = None,
         function_args: List[Any] = None,
+        structs: List[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Executes the analysis workflow:
@@ -119,7 +120,9 @@ class AngrAnalyzer:
             master_result["analyzed_types"].append(solver.vulnerability_type)
             try:
                 start_time = time.time()
-                result = solver.solve(self.project, target_function, function_args)
+                result = solver.solve(
+                    self.project, target_function, function_args, structs
+                )
                 end_time = time.time()
                 logger.info(
                     f"Solver '{solver.vulnerability_type}' completed in {end_time - start_time:.2f} seconds."

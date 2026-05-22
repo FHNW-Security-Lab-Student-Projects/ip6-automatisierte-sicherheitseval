@@ -1,5 +1,5 @@
 from mcp.server.fastmcp import FastMCP
-from typing import Literal, List, Any
+from typing import List, Any
 
 from vuln_validator.utils.logging_config import setup_logging
 
@@ -44,9 +44,7 @@ def validate_vulnerability(
     target_path: str,
     target_function: str = None,
     function_args: List[Any] = None,
-    vulnerability_type: Literal[
-        "stack_overflow", "heap_overflow", "format_string", "auto"
-    ] = "auto",
+    vulnerability_type: str = "auto",
 ) -> dict:
     """
     Validates a vulnerability hypothesis using symbolic execution (angr).

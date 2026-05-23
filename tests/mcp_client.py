@@ -54,7 +54,7 @@ async def run_analysis_cli(
             if function_args:
                 arguments["function_args"] = function_args
             if structs:
-                arguments["local_structs"] = structs
+                arguments["structs"] = structs
 
             result = await session.call_tool("validate_vulnerability", arguments)
 

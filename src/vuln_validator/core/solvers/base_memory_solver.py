@@ -1,7 +1,6 @@
 from .base_solver import BaseSolver
-from ._dwarf import adjust_libc_limits_from_locals
 from ._evaluation import evaluate_results
-from ._another_dwarf import get_struct_addr_from_dwarf
+from .dwarf_analyzer import DwarfAnalyzer
 from abc import abstractmethod
 import angr
 import claripy
@@ -77,10 +76,14 @@ class BaseMemorySolver(BaseSolver):
         # Advance past prologue to find stable RSP for stack-based solvers
         state = self._advance_past_prologue(project, state)
 
-        struct_addresses = self._resolve_struct_addresses(state, project, addr, structs)
+        dwarf_analyzer = DwarfAnalyzer(project)
+
+        struct_addresses = self._resolve_struct_addresses(
+            state, project, addr, structs, dwarf_analyzer
+        )
 
         # adjust dynamic libc limits from stack locals
-        adjust_libc_limits_from_locals(state, project, addr)
+        dwarf_analyzer.adjust_libc_limits(state, addr)
 
         # 4. Specific setup delegation (The child solver does the magic)
         symbolic_args = self._place_buffers_and_canaries(state, project, function_args)
@@ -268,7 +271,10 @@ class BaseMemorySolver(BaseSolver):
 
         return state
 
-    def _resolve_struct_addresses(self, state, project, func_addr, structs):
+    def _resolve_struct_addresses(
+        self, state, project, func_addr, structs, dwarf_analyzer
+    ):
+        """Resolves runtime stack addresses of local variables via DWARF."""
         if not structs:
             return []
 
@@ -280,16 +286,20 @@ class BaseMemorySolver(BaseSolver):
                 struct_location = struct.get("location")
                 struct_name = struct.get("name")
                 if struct_location == "stack":
-                    struct_offset = get_struct_addr_from_dwarf(
-                        project, func_addr, struct_name, state
+                    struct_offset = dwarf_analyzer.get_struct_stack_addr(
+                        func_addr, struct_name, state
                     )
-                    struct_addr = (
-                        current_rbp + struct_offset
-                    )  # struct_offset is negative!
-                    logger.debug(
-                        f"Resolved struct '{struct_name}' address: 0x{struct_addr:x}"
-                    )
-                    all_struct_addresses.append(struct_addr)
+                    if struct_offset is not None:
+                        # struct_offset is negative!
+                        struct_addr = current_rbp + struct_offset
+                        logger.debug(
+                            f"Resolved struct '{struct_name}' address: 0x{struct_addr:x}"
+                        )
+                        all_struct_addresses.append(struct_addr)
+                    else:
+                        logger.debug(
+                            f"Could not resolve address for struct '{struct_name}' via DWARF"
+                        )
                 elif struct_location == "heap":
                     logger.warning(
                         f"Heap-based struct '{struct_name}' resolution not implemented. Skipping."

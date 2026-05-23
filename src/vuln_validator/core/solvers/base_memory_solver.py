@@ -291,9 +291,11 @@ class BaseMemorySolver(BaseSolver):
                     )
                     if struct_offset is not None:
                         # struct_offset is negative!
-                        struct_addr = current_rbp + struct_offset
+                        struct_addr = (
+                            current_rbp + struct_offset + 0x10
+                        )  # because cfa is rbp+0x10
                         logger.debug(
-                            f"Resolved struct '{struct_name}' address: 0x{struct_addr:x}"
+                            f"Resolved struct '{struct_name}' address: 0x{struct_addr:x} with rbp: 0x{current_rbp:x}"
                         )
                         all_struct_addresses.append(struct_addr)
                     else:

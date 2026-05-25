@@ -11,15 +11,12 @@ struct User {
 };
 
 void create_user(char *input) {
-    // char tnt[65];
     struct User u; 
-    // char another_buffer[128];
     memset(&u, 0, sizeof(struct User)); 
-    u.is_admin = 0; // Standardmäßig kein Admin
+    u.is_admin = 0;
     
-    // strcpy(u.name, input);
     strncpy(u.name, input, sizeof(u.name) - 1);
-    u.name[sizeof(u.name) - 1] = '\0'; // Null-terminierung sicherstellen
+    u.name[sizeof(u.name) - 1] = '\0';
 
     if (u.is_admin != 0) {
         printf("Admin!\n");

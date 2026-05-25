@@ -41,6 +41,36 @@ TEST_CASES = [
         ],
         "should_find": True,
     },
+    {
+        "binary": "tests/fixtures/stack_overflow/struct_in_stack",
+        "func": "create_user",
+        "args": [
+            {"type": "symbolic_pointer", "size": 64},
+        ],
+        "structs": [
+            {
+                "type": "struct",
+                "name": "u",
+                "location": "stack",
+                "size": 20,
+                "fields": [
+                    {
+                        "type": "symbolic_value",
+                        "offset": 0,
+                        "size": 16,
+                        "is_input": True,
+                    },
+                    {
+                        "type": "symbolic_value",
+                        "offset": 16,
+                        "size": 4,
+                        "is_critical": True,
+                    },
+                ],
+            }
+        ],
+        "should_find": True,
+    },
     # --- Safe binaries ---
     {
         "binary": "tests/fixtures/common/safe_binary",
@@ -68,6 +98,12 @@ TEST_CASES = [
         "args": [{"type": "symbolic_pointer", "size": 128}],
         "should_find": False,
     },
+    {
+        "binary": "tests/fixtures/common/struct_in_stack_safe",
+        "func": "create_user",
+        "args": [{"type": "symbolic_pointer", "size": 64}],
+        "should_find": False,
+    },
 ]
 
 
@@ -93,7 +129,10 @@ class TestStackOverflowSolver:
 
         solver = StackOverflowSolver()
         result = solver.solve(
-            proj, target_function=case["func"], function_args=case["args"]
+            proj,
+            target_function=case["func"],
+            function_args=case["args"],
+            structs=case.get("structs", []),
         )
 
         if case["should_find"]:

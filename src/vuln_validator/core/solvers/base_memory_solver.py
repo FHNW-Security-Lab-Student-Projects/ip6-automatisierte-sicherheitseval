@@ -46,10 +46,16 @@ class BaseMemorySolver(BaseSolver):
         try:
             symbol = project.loader.main_object.get_symbol(target_function)
             if symbol is None:
+                logger.debug(
+                    "Try for C++ name mangling for function '%s'", target_function
+                )
                 for sym in project.loader.main_object.symbols:
                     if target_function in sym.name:
                         symbol = sym
                 if symbol is None:
+                    logger.error(
+                        "Target function '%s' not found in binary.", target_function
+                    )
                     raise KeyError
             addr = project.kb.functions[symbol.rebased_addr].addr
             logger.debug(

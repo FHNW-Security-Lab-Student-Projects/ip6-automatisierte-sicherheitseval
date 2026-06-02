@@ -13,7 +13,7 @@ TEST_CASES = [
     {
         "binary": "tests/fixtures/heap_overflow/control_flow_hijack",
         "func": "vulnerable_function",
-        "args": [{"type": "symbolic_pointer", "size": 64}],
+        "args": [{"type": "pointer", "size": 64}],
         "should_find": True,
     },
     {

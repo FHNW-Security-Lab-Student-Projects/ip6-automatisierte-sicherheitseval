@@ -79,13 +79,16 @@ class BaseMemorySolver(BaseSolver):
             addr,
         )
 
+        old_rsp = state.solver.eval(state.regs.rsp)
+        logger.debug("Initial RSP: 0x%x", old_rsp)
+
         # Advance past prologue to find stable RSP for stack-based solvers
         state = self._advance_past_prologue(project, state)
 
         dwarf_analyzer = DwarfAnalyzer(project)
 
         struct_addresses = self._resolve_struct_addresses(
-            state, project, addr, structs, dwarf_analyzer
+            state, project, addr, structs, dwarf_analyzer, old_rsp
         )
 
         # adjust dynamic libc limits from stack locals
@@ -278,7 +281,7 @@ class BaseMemorySolver(BaseSolver):
         return state
 
     def _resolve_struct_addresses(
-        self, state, project, func_addr, structs, dwarf_analyzer
+        self, state, project, func_addr, structs, dwarf_analyzer, old_rsp
     ):
         """Resolves runtime stack addresses of local variables via DWARF."""
         if not structs:
@@ -286,6 +289,7 @@ class BaseMemorySolver(BaseSolver):
 
         all_struct_addresses = []
         current_rbp = state.solver.eval(state.regs.rbp)
+        logger.debug("Current RBP: 0x%x", current_rbp)
 
         for struct in structs:
             if isinstance(struct, dict):
@@ -296,10 +300,12 @@ class BaseMemorySolver(BaseSolver):
                         func_addr, struct_name, state
                     )
                     if struct_offset is not None:
-                        # struct_offset is negative!
-                        struct_addr = (
-                            current_rbp + struct_offset + 0x10
-                        )  # because cfa is rbp+0x10
+                        retaddr_size = state.arch.bytes
+                        cfa = old_rsp + retaddr_size
+                        logger.debug(
+                            f"Calculated CFA (Canonical Frame Address) for struct '{struct_name}': 0x{cfa:x} (old RSP: 0x{old_rsp:x} + retaddr size: 0x{retaddr_size:x})"
+                        )
+                        struct_addr = cfa + struct_offset  # struct_offset is negative!
                         logger.debug(
                             f"Resolved struct '{struct_name}' address: 0x{struct_addr:x} with rbp: 0x{current_rbp:x}"
                         )
@@ -312,7 +318,7 @@ class BaseMemorySolver(BaseSolver):
                     logger.warning(
                         f"Heap-based struct '{struct_name}' resolution not implemented. Skipping."
                     )
-                elif struct_location == "pointer":
+                elif struct_location == "arg":
                     logger.warning(
                         f"Pointer-based struct '{struct_name}' resolution not implemented. Skipping."
                     )

@@ -9,24 +9,41 @@ Follow this strict procedure:
      - Vulnerability suspected → proceed to steps 2 and 3.
      - Clearly safe → skip steps 2 and 3; document as safe without calling the tool.
      - Uncertain → proceed to steps 2 and 3 with vulnerability_type = "auto".
-   - Analyze the arguments of the **Target Function**:
-     - Identify which arguments are pointers or reference memory buffers.
-     - Determine the appropriate **size** in bytes for each buffer based on the code context.
 
 2. **Parameter Definition**:
    - **READ THE EXACT SIGNATURE**: Use only the parameters as literally declared in the source. Never infer standard signatures (e.g. If entry point is main and main() is declared without parameters, then define args = []).
-   - Classify each argument of the **Target Function** into exactly one of these three types:
-     - `symbolic_pointer`: A pointer argument requiring a symbolic memory region. Must include a `size` in bytes representing the buffer size.
-     - `symbolic_value`: A primitive value argument (integer, char, etc.) that should be treated as symbolic input. Must include a `size` in bits.
-     - `concrete`: A fixed, constant value passed directly without symbolic variation.
-   - If the target function takes no arguments, the list is empty.
+   
+   - **A. Function Arguments**:
+     - Classify each argument of the **Target Function** into exactly one of these types:
+       - `symbolic_pointer`: A pointer argument requiring a symbolic memory region. Must include a `size` in bytes representing the buffer size.
+       - `symbolic_value`: A primitive value argument (integer, char, etc.) that should be treated as symbolic input. Must include a `size` in bits.
+       - `concrete`: A fixed, constant value passed directly without symbolic variation.
+     - If the target function takes no arguments, the list is empty.
+
+   - **B. Local Structs Analysis (CRITICAL)**:
+     - Identify ALL `struct` variables used within the **Target Function**. This includes:
+       - Locally declared structs.
+       - Structs passed as arguments (pointers or values).
+       - Structs allocated on the heap.
+     - For EACH relevant struct (especially those involved in the unsafe operation), define:
+       - `name`: The variable name used in the code.
+       - `location`: Where is it stored? ("stack", "heap", or "arg").
+       - `size`: Total size of the struct in bytes.
+       - `fields`: A list of fields within the struct.
+         - Determine the `size` (in bytes) for each field based on the struct definition.
+         - Mark the field receiving the external input (e.g., destination of `strcpy`) as `"is_input": true`.
+         - Mark any field that lies AFTER the input field in memory and could be overwritten as `"is_critical": true`.
+         - All other fields only need `size`.
+         - The order of the fields must coincide with the struct definition!
 
 3. **Validation Call**:
    - For validation you MUST call the `validate_vulnerability` tool with the following parameters:
      - `target_path`: The exact path of the analyzed file.
      - `target_function`: The name of the function containing the unsafe operation.
      - `vulnerability_type`: The specific category of vulnerability (e.g., "stack_overflow", "heap_overflow", "format_string") or "auto" if uncertain.
-     - `args`: The list of argument definitions for the **Target Function**, using the types defined in step 2. If the function takes no arguments, provide an empty list.
+     - `args`: The list of argument definitions for the **Target Function**, using the types defined in step 2. If the function takes no arguments.
+     - `structs`: The list of struct definitions from Step 2B. 
+       - If no structs are involved, provide an empty list.
 
 4. **Final Report**:
    - Base your final conclusion SOLELY on the response from the `validate_vulnerability` tool.

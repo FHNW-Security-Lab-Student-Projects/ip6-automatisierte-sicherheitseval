@@ -117,10 +117,12 @@ def evaluate_results(
             logger.info(
                 f"Checking struct '{struct['name']}' at resolved address 0x{struct_addr:x} for critical field corruption..."
             )
+            size = 0
+            offset = 0
             for field in struct.get("fields", []):
+                offset += size
+                size = field["size"]
                 if field.get("is_critical"):
-                    offset = field["offset"]
-                    size = field["size"]
                     field_addr = struct_addr + offset
                     try:
                         current_val = state.memory.load(

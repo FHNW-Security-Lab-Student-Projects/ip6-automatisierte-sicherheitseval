@@ -28,6 +28,7 @@ def validate_vulnerability(
         target_path: Full path to the binary/source on the host system.
         target_function: Optional specific function to analyze. If not provided, analysis starts from the entry point.
         function_args: Optional dictionary of function arguments with their types and sizes.
+        structs: list of struct definitions used in the target function.
         vulnerability_type: The type of vulnerability to check for.
 
     Returns:

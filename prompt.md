@@ -15,8 +15,8 @@ Follow this strict procedure:
    
    - **A. Function Arguments**:
      - Classify each argument of the **Target Function** into exactly one of these types:
-       - `symbolic_pointer`: A pointer argument requiring a symbolic memory region. Must include a `size` in bytes representing the buffer size.
-       - `symbolic_value`: A primitive value argument (integer, char, etc.) that should be treated as symbolic input. Must include a `size` in bits.
+       - `pointer`: A pointer argument. Must include a `size` in bytes representing the buffer size. If it points to a struct add `is_struct` true.
+       - `variable`: A primitive value argument (integer, char, etc.) that should be treated as symbolic input. Must include a `size` in bits. If it is a struct add `is_struct` true.
        - `concrete`: A fixed, constant value passed directly without symbolic variation.
      - If the target function takes no arguments, the list is empty.
 
@@ -27,7 +27,7 @@ Follow this strict procedure:
        - Structs allocated on the heap.
      - For EACH relevant struct (especially those involved in the unsafe operation), define:
        - `name`: The variable name used in the code.
-       - `location`: Where is it stored? ("stack", "heap", or "arg").
+       - `location`: Where is it stored? ("stack", "heap", or "arg") If location is "arg" then add `arg_index` with the index of the argument in the function.
        - `size`: Total size of the struct in bytes.
        - `fields`: A list of fields within the struct.
          - Determine the `size` (in bytes) for each field based on the struct definition.

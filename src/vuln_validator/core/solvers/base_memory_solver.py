@@ -194,16 +194,14 @@ class BaseMemorySolver(BaseSolver):
                         self._write_to_register(regs, state, i, value)
                     else:
                         size = arg.get("size", 64)
-                        sym_var = claripy.BVS(f"arg_{i}", size * 8)
-                        symbolic_args.append(sym_var)
+                        is_struct = arg.get("is_struct", False)
+                        if is_struct:
+                            var = claripy.BVV(0, size * 8)
+                        else:
+                            var = claripy.BVS(f"arg_{i}", size * 8)
+                            symbolic_args.append(var)
 
-                        if arg_type == "struct_pointer" or arg_type == "struct_value":
-                            sym_var = claripy.BVV(0, size * 8)
-
-                        if (
-                            arg_type == "symbolic_pointer"
-                            or arg_type == "struct_pointer"
-                        ):
+                        if arg_type == "pointer":
                             has_pointer = True
                             max_size = max(max_size, size)
 
@@ -218,7 +216,7 @@ class BaseMemorySolver(BaseSolver):
                                 i,
                                 buffer_addr,
                             )
-                            state.memory.store(buffer_addr, sym_var)
+                            state.memory.store(buffer_addr, var)
 
                             buffer_infos.append(
                                 {"addr": buffer_addr, "size": size, "arg_idx": i}

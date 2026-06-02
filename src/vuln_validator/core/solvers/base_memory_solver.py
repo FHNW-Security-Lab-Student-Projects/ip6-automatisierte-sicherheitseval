@@ -87,15 +87,19 @@ class BaseMemorySolver(BaseSolver):
 
         dwarf_analyzer = DwarfAnalyzer(project)
 
-        struct_addresses = self._resolve_struct_addresses(
-            state, project, addr, structs, dwarf_analyzer, old_rsp
-        )
+        # struct_addresses = self._resolve_struct_addresses(
+        #     state, project, addr, structs, dwarf_analyzer, old_rsp
+        # )
 
         # adjust dynamic libc limits from stack locals
         dwarf_analyzer.adjust_libc_limits(state, addr)
 
         # 4. Specific setup delegation (The child solver does the magic)
         symbolic_args = self._place_buffers_and_canaries(state, project, function_args)
+
+        struct_addresses = self._resolve_struct_addresses(
+            state, project, addr, structs, dwarf_analyzer, old_rsp
+        )
 
         if symbolic_args is None:  # Error during buffer/canary setup
             return self._build_result(
@@ -193,7 +197,13 @@ class BaseMemorySolver(BaseSolver):
                         sym_var = claripy.BVS(f"arg_{i}", size * 8)
                         symbolic_args.append(sym_var)
 
-                        if arg_type == "symbolic_pointer":
+                        if arg_type == "struct_pointer" or arg_type == "struct_value":
+                            sym_var = claripy.BVV(0, size * 8)
+
+                        if (
+                            arg_type == "symbolic_pointer"
+                            or arg_type == "struct_pointer"
+                        ):
                             has_pointer = True
                             max_size = max(max_size, size)
 
@@ -309,7 +319,9 @@ class BaseMemorySolver(BaseSolver):
                         logger.debug(
                             f"Resolved struct '{struct_name}' address: 0x{struct_addr:x} with rbp: 0x{current_rbp:x}"
                         )
-                        all_struct_addresses.append(struct_addr)
+                        all_struct_addresses.append(
+                            struct_addr
+                        )  # TODO: don't append but put at correct index
                     else:
                         logger.debug(
                             f"Could not resolve address for struct '{struct_name}' via DWARF"
@@ -319,9 +331,15 @@ class BaseMemorySolver(BaseSolver):
                         f"Heap-based struct '{struct_name}' resolution not implemented. Skipping."
                     )
                 elif struct_location == "arg":
-                    logger.warning(
-                        f"Pointer-based struct '{struct_name}' resolution not implemented. Skipping."
+                    regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
+                    struct_arg_idx = struct.get("arg_index")
+                    struct_addr = state.solver.eval(
+                        getattr(state.regs, regs[struct_arg_idx])
                     )
+                    logger.debug(
+                        f"Resolved struct '{struct_name}' address from argument {struct_arg_idx}: 0x{struct_addr:x}"
+                    )
+                    all_struct_addresses.append(struct_addr)
                 else:
                     logger.warning(
                         f"Unsupported struct location '{struct_location}' for struct '{struct_name}'. Skipping."

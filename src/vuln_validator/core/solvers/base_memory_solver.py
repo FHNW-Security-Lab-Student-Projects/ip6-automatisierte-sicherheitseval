@@ -332,8 +332,15 @@ class BaseMemorySolver(BaseSolver):
                         continue
                     for state in simgr.deadended:
                         list = state.globals.get("allocations", [])
-                        first_item = list[0]
-                        content = first_item["addr"]
+                        for item in list:
+                            addr = item.get("addr")
+                            if addr in struct_addresses.values():
+                                list.remove(item)
+                                continue
+                            else:
+                                break
+
+                        content = item["addr"]
                         resolved_addr = struct_addresses.get(struct_name)
                         if resolved_addr:
                             logger.debug(

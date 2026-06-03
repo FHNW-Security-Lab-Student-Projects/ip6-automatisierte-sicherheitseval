@@ -87,10 +87,6 @@ class BaseMemorySolver(BaseSolver):
 
         dwarf_analyzer = DwarfAnalyzer(project)
 
-        # struct_addresses = self._resolve_struct_addresses(
-        #     state, project, addr, structs, dwarf_analyzer, old_rsp
-        # )
-
         # adjust dynamic libc limits from stack locals
         dwarf_analyzer.adjust_libc_limits(state, addr)
 
@@ -98,7 +94,7 @@ class BaseMemorySolver(BaseSolver):
         symbolic_args = self._place_buffers_and_canaries(state, project, function_args)
 
         struct_addresses = self._resolve_struct_addresses(
-            state, project, addr, structs, dwarf_analyzer, old_rsp
+            state, project, addr, structs, dwarf_analyzer, old_rsp, None
         )
 
         if symbolic_args is None:  # Error during buffer/canary setup
@@ -139,6 +135,10 @@ class BaseMemorySolver(BaseSolver):
 
         # 6. Collect canaries from all states (heap/stack)
         canaries = self._collect_canaries(simgr)
+
+        struct_addresses = self._resolve_struct_addresses(
+            state, project, addr, structs, dwarf_analyzer, old_rsp, simgr
+        )
 
         # 7. Evaluation of results
         return evaluate_results(
@@ -289,13 +289,14 @@ class BaseMemorySolver(BaseSolver):
         return state
 
     def _resolve_struct_addresses(
-        self, state, project, func_addr, structs, dwarf_analyzer, old_rsp
+        self, state, project, func_addr, structs, dwarf_analyzer, old_rsp, simgr=None
     ):
         """Resolves runtime stack addresses of local variables via DWARF."""
         if not structs:
             return []
 
         all_struct_addresses = []
+        resolved_structs = {}
         current_rbp = state.solver.eval(state.regs.rbp)
         logger.debug("Current RBP: 0x%x", current_rbp)
 
@@ -303,6 +304,11 @@ class BaseMemorySolver(BaseSolver):
             if isinstance(struct, dict):
                 struct_location = struct.get("location")
                 struct_name = struct.get("name")
+                if resolved_structs.get(struct_name):
+                    logger.debug(
+                        f"Struct '{struct_name}' already resolved at address 0x{resolved_structs[struct_name]:x}."
+                    )
+                    continue
                 if struct_location == "stack":
                     struct_offset = dwarf_analyzer.get_struct_stack_addr(
                         func_addr, struct_name, state
@@ -317,17 +323,29 @@ class BaseMemorySolver(BaseSolver):
                         logger.debug(
                             f"Resolved struct '{struct_name}' address: 0x{struct_addr:x} with rbp: 0x{current_rbp:x}"
                         )
-                        all_struct_addresses.append(
-                            struct_addr
-                        )  # TODO: don't append but put at correct index
+                        all_struct_addresses.append(struct_addr)
+                        resolved_structs[struct_name] = struct_addr
                     else:
                         logger.debug(
                             f"Could not resolve address for struct '{struct_name}' via DWARF"
                         )
                 elif struct_location == "heap":
-                    logger.warning(
-                        f"Heap-based struct '{struct_name}' resolution not implemented. Skipping."
-                    )
+                    if simgr is None:
+                        continue
+                    for state in simgr.deadended:
+                        logger.info(state.globals.get("allocations", []))
+                        list = state.globals.get("allocations", [])
+                        first_item = list[0]
+                        content = first_item["addr"]
+                        resolved_addr = resolved_structs.get(struct_name)
+                        if resolved_addr:
+                            logger.debug(
+                                f"Struct '{struct_name}' already resolved at address 0x{resolved_addr:x}."
+                            )
+                            continue
+                        resolved_structs[struct_name] = content
+                        all_struct_addresses.append(content)
+
                 elif struct_location == "arg":
                     regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
                     struct_arg_idx = struct.get("arg_index")
@@ -338,6 +356,7 @@ class BaseMemorySolver(BaseSolver):
                         f"Resolved struct '{struct_name}' address from argument {struct_arg_idx}: 0x{struct_addr:x}"
                     )
                     all_struct_addresses.append(struct_addr)
+                    resolved_structs[struct_name] = struct_addr
                 else:
                     logger.warning(
                         f"Unsupported struct location '{struct_location}' for struct '{struct_name}'. Skipping."
@@ -347,4 +366,4 @@ class BaseMemorySolver(BaseSolver):
                     f"Invalid struct format: {struct}. Expected a dict with 'name' and 'location'. Skipping."
                 )
 
-        return all_struct_addresses
+        return resolved_structs

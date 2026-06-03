@@ -113,9 +113,11 @@ def evaluate_results(
                 "Mismatch between resolved struct addresses and local struct definitions. Skipping intra-struct corruption check."
             )
             break
-        for struct_addr, struct in zip(struct_addresses, structs):
+        for struct in structs:
+            name = struct.get("name")
+            addr = struct_addresses.get(name)
             logger.info(
-                f"Checking struct '{struct['name']}' at resolved address 0x{struct_addr:x} for critical field corruption..."
+                f"Checking struct '{struct['name']}' at resolved address 0x{addr:x} for critical field corruption..."
             )
             size = 0
             offset = 0
@@ -123,7 +125,7 @@ def evaluate_results(
                 offset += size
                 size = field["size"]
                 if field.get("is_critical"):
-                    field_addr = struct_addr + offset
+                    field_addr = addr + offset
                     try:
                         current_val = state.memory.load(
                             field_addr, size, endness=state.project.arch.memory_endness

@@ -53,6 +53,7 @@ class BaseFakeHeapAlloc(angr.SimProcedure):
         if "heap_ptr" not in self.state.globals:
             self.state.globals["heap_ptr"] = self.HEAP_START
             self.state.globals["canary_list"] = []
+            self.state.globals["allocations"] = []
 
         # 3. Calculate Addresses with Optional Alignment
         raw_addr = (
@@ -77,7 +78,9 @@ class BaseFakeHeapAlloc(angr.SimProcedure):
         else:
             concrete_ret_addr = concrete_raw
 
-        ret_addr = claripy.BVV(concrete_ret_addr, 64)
+        ret_addr = claripy.BVV(
+            concrete_ret_addr, 64
+        )  # BVV for consistent type handling
 
         # Layout: [Underflow Canary] [User Data] [Overflow Canary]
         # Underflow Canary is placed immediately before the returned address
@@ -103,6 +106,14 @@ class BaseFakeHeapAlloc(angr.SimProcedure):
                     "padding_size": self.CANARY_SIZE,
                     "source": f"{self.__class__.__name__}_hook",
                     "kind": kind,
+                }
+            )
+
+            self.state.globals["allocations"].append(
+                {
+                    "addr": concrete_ret_addr,
+                    "size": concrete_size,
+                    "source": f"{self.__class__.__name__}_hook",
                 }
             )
 

@@ -1,3 +1,79 @@
+## [0.5.0] - 2026-06-03
+
+### 🚀 Features
+
+- Add BaseFakeHeapAlloc and MyFakeCalloc
+- Add MyFakeAlignedAlloc
+- Set libc string limits from DWARF locals
+- Make c++ compatible
+- Hook for c++ new/new[]
+- Start with config file
+- Add symbolic_stdin and heap_start to config
+- Add analyzer config
+- Start with intra-struct analysis
+- Update prompt so LLM states structs
+- Working draft of struct pointer in args
+- First draft of struct in heap
+- Allow multiple structs stored in heap
+
+### 🐛 Bug Fixes
+
+- Explicit signature in heap_hooks so angr passes size correctly
+- Advance past prologue for correct rsp
+- Don't limit vulnerability type in mcp server
+- Typo
+- Add offset to get correct struct address
+
+### 🚜 Refactor
+
+- Remove duplicate code from MyFakeAlignedAlloc
+- Slim down BasememorySolver
+- Add DwarfAnalyzer
+- Cfa not hardcoded but relative to rsp
+- Rename arg types and describe arg_index in prompt
+
+### 📚 Documentation
+
+- Describe compilation
+- Add Configuration to Readme
+- Update Readme (binary compilation and local usage commands)
+
+### ⚡ Performance
+
+- Calculate offset without LLM hint
+
+### 🧪 Testing
+
+- Add test case with calloc
+- Add test for aligned_alloc
+- Add test for c++ heap overflow
+- Add tests for config_loader
+- Add struct test cases
+- Rename arg types and add struct pointer as arg
+- Add cases for struct stored in heap
+
+### ⚙️ Miscellaneous Tasks
+
+- Add example code with calloc
+- Instruct llm to return line number where vulnerability is
+- Add pyelftools
+- Add example binaries for aligned_alloc
+- Add c++ example code
+- Consistent naming of AngrAnalyzer
+- Update test to work with structs
+- Add example binary with struct in stack
+- Remove irrelevant claude config
+- Remove unused dwarf files
+- Add safe binary with struct
+- Add safe binary with struct
+- Add logsfor function address resolution
+- Remove unused prompt (obsolete because of prompt injection prevention)
+- Remove prompt check
+- Add struct-pointer in arg binaries
+- Add binaries with struct stored in heap
+- Remove unused logs and variabels
+- Add binaries with multiple structs stored in heap
+- *(merge)* Merge pull request #6 from FHNW-Security-Lab-Student-Projects/dev
 ## [0.4.0] - 2026-05-13
 
 ### 🚀 Features
@@ -41,6 +117,7 @@
 
 - Add test binaries for heap overflow
 - *(merge)* Merge pull request #5 from FHNW-Security-Lab-Student-Projects/dev
+- Update changelog
 ## [0.3.0] - 2026-04-23
 
 ### 🚀 Features

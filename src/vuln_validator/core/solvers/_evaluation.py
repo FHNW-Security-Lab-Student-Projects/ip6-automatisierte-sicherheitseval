@@ -116,7 +116,7 @@ def evaluate_results(
         for struct in structs:
             name = struct.get("name")
             addr = struct_addresses.get(name)
-            logger.info(
+            logger.debug(
                 f"Checking struct '{struct['name']}' at resolved address 0x{addr:x} for critical field corruption..."
             )
             size = 0

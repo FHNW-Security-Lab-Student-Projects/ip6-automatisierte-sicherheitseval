@@ -1,10 +1,13 @@
 from .base_solver import BaseSolver
+from ._evaluation import evaluate_results
+from .dwarf_analyzer import DwarfAnalyzer
 from abc import abstractmethod
 import angr
 import claripy
 from itertools import chain
 from typing import List, Dict, Any
 import logging
+from ...utils.config_loader import get_base_memory_solver_config
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +23,11 @@ class BaseMemorySolver(BaseSolver):
         project: angr.Project,
         target_function: str = None,
         function_args: List[Any] = None,
+        structs: List[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         logger.info("Running %s solver...", self.vulnerability_type)
+
+        structs = structs or []
 
         if not target_function:
             return self._build_result(False, None, [], "No target function specified.")
@@ -32,11 +38,25 @@ class BaseMemorySolver(BaseSolver):
         # 1. Environment Setup
         self._setup_environment(project)
 
+        # Load solver config
+        solver_cfg = get_base_memory_solver_config()
+        symbolic_stdin_bytes = solver_cfg["symbolic_stdin_bytes"]
+
         # 2. Function Address Resolution
         try:
             symbol = project.loader.main_object.get_symbol(target_function)
             if symbol is None:
-                raise KeyError
+                logger.debug(
+                    "Try for C++ name mangling for function '%s'", target_function
+                )
+                for sym in project.loader.main_object.symbols:
+                    if target_function in sym.name:
+                        symbol = sym
+                if symbol is None:
+                    logger.error(
+                        "Target function '%s' not found in binary.", target_function
+                    )
+                    raise KeyError
             addr = project.kb.functions[symbol.rebased_addr].addr
             logger.debug(
                 "Target function '%s' found at address: 0x%x", target_function, addr
@@ -51,7 +71,7 @@ class BaseMemorySolver(BaseSolver):
             )
 
         # 3. Initial State Setup
-        symbolic_stdin = claripy.BVS("my_input", 512 * 8)
+        symbolic_stdin = claripy.BVS("my_input", symbolic_stdin_bytes * 8)
         state = project.factory.call_state(addr, stdin=symbolic_stdin)
         logger.info(
             "Initial state created for function '%s' at address 0x%x",
@@ -59,8 +79,23 @@ class BaseMemorySolver(BaseSolver):
             addr,
         )
 
+        old_rsp = state.solver.eval(state.regs.rsp)
+        logger.debug("Initial RSP: 0x%x", old_rsp)
+
+        # Advance past prologue to find stable RSP for stack-based solvers
+        state = self._advance_past_prologue(project, state)
+
+        dwarf_analyzer = DwarfAnalyzer(project)
+
+        # adjust dynamic libc limits from stack locals
+        dwarf_analyzer.adjust_libc_limits(state, addr)
+
         # 4. Specific setup delegation (The child solver does the magic)
         symbolic_args = self._place_buffers_and_canaries(state, project, function_args)
+
+        struct_addresses = self._resolve_struct_addresses(
+            state, project, addr, structs, dwarf_analyzer, old_rsp, None
+        )
 
         if symbolic_args is None:  # Error during buffer/canary setup
             return self._build_result(
@@ -70,8 +105,13 @@ class BaseMemorySolver(BaseSolver):
         # 5. Simulation Loop
         simgr = project.factory.simulation_manager(state)
         step_count = 0
-        max_steps = 500
-        step_size = 1
+        max_steps = solver_cfg["max_steps"]
+        step_size = solver_cfg["step_size"]
+        logger.debug(
+            "Config: max_steps=%d, step_size=%d",
+            max_steps,
+            step_size,
+        )
 
         while len(simgr.active) > 0 and step_count < max_steps:
             if len(simgr.unconstrained) > 0 or len(simgr.errored) > 0:
@@ -96,9 +136,21 @@ class BaseMemorySolver(BaseSolver):
         # 6. Collect canaries from all states (heap/stack)
         canaries = self._collect_canaries(simgr)
 
+        struct_addresses = self._resolve_struct_addresses(
+            state, project, addr, structs, dwarf_analyzer, old_rsp, simgr
+        )
+
         # 7. Evaluation of results
-        return self._evaluate_results(
-            simgr, canaries, symbolic_args, symbolic_stdin, target_function
+        return evaluate_results(
+            simgr,
+            canaries,
+            symbolic_args,
+            symbolic_stdin,
+            target_function,
+            structs,
+            struct_addresses,
+            self.vulnerability_type,
+            self._build_result,
         )
 
     @abstractmethod
@@ -115,7 +167,7 @@ class BaseMemorySolver(BaseSolver):
         project,
         function_args,
         *,
-        base_offset: int = 0x80,
+        base_offset: int = 0x80,  # because of redzone
         buffer_padding: int = 0x0,
     ):
         symbolic_args = []
@@ -142,10 +194,14 @@ class BaseMemorySolver(BaseSolver):
                         self._write_to_register(regs, state, i, value)
                     else:
                         size = arg.get("size", 64)
-                        sym_var = claripy.BVS(f"arg_{i}", size * 8)
-                        symbolic_args.append(sym_var)
+                        is_struct = arg.get("is_struct", False)
+                        if is_struct:
+                            var = claripy.BVV(0, size * 8)
+                        else:
+                            var = claripy.BVS(f"arg_{i}", size * 8)
+                            symbolic_args.append(var)
 
-                        if arg_type == "symbolic_pointer":
+                        if arg_type == "pointer":
                             has_pointer = True
                             max_size = max(max_size, size)
 
@@ -160,7 +216,7 @@ class BaseMemorySolver(BaseSolver):
                                 i,
                                 buffer_addr,
                             )
-                            state.memory.store(buffer_addr, sym_var)
+                            state.memory.store(buffer_addr, var)
 
                             buffer_infos.append(
                                 {"addr": buffer_addr, "size": size, "arg_idx": i}
@@ -170,6 +226,7 @@ class BaseMemorySolver(BaseSolver):
                 else:
                     self._write_to_register(regs, state, i, arg)
 
+            # Because _max_local_size_from_dwarf doesn't know about the actual argument sizes (only pointer size)
             if has_pointer and hasattr(state, "libc"):
                 bound = max_size + 1
                 state.libc.max_str_len = max(state.libc.max_str_len, bound)
@@ -195,110 +252,6 @@ class BaseMemorySolver(BaseSolver):
                     canaries.append(chunk)
         return canaries
 
-    def _evaluate_results(
-        self, simgr, canaries, symbolic_args, symbolic_stdin, target_function
-    ):
-        found_vuln = False
-        evidence_list = []
-        canary_hit = False
-
-        # Check 1: Symbolic RIP (Control Flow Hijack)
-        for state in simgr.unconstrained:
-            if state.solver.symbolic(state.regs.rip):
-                vuln_data = self._get_cause(state, symbolic_args, symbolic_stdin)
-                vuln_data["state_type"] = "unconstrained"
-                vuln_data["description"] = (
-                    "Unconstrained state with symbolic RIP detected."
-                )
-                evidence_list.append(vuln_data)
-                found_vuln = True
-
-        # Check 2: Canaries (Data Corruption)
-        for state in chain(simgr.active, simgr.deadended, simgr.unconstrained):
-            if canary_hit:
-                break
-            for c in canaries:
-                try:
-                    current_value = state.memory.load(
-                        c["addr"],
-                        c["padding_size"],
-                        endness=state.project.arch.memory_endness,
-                    )
-                    is_hit = False
-                    reason = ""
-
-                    if state.solver.symbolic(current_value):
-                        is_hit = True
-                        reason = "symbolic"
-                    else:
-                        concrete_value = state.solver.eval(current_value)
-                        if concrete_value != c["expected"]:
-                            is_hit = True
-                            reason = f"modified to {hex(concrete_value)}"
-
-                    if is_hit:
-                        canary_hit = True
-                        vuln_data = self._get_cause(
-                            state, symbolic_args, symbolic_stdin
-                        )
-                        vuln_data["state_type"] = "canary_hit"
-                        vuln_data["description"] = (
-                            f"Canary at 0x{c['addr']:x} {reason}. Indicates overflow."
-                        )
-                        evidence_list.append(vuln_data)
-                        break
-                except Exception as e:
-                    logger.warning(
-                        "Failed to check canary at address 0x%x: %s", c["addr"], e
-                    )
-                    continue
-
-            if canary_hit:
-                found_vuln = True
-                break
-
-        if found_vuln:
-            msg = f"{self.vulnerability_type.replace('_', ' ').title()} confirmed in '{target_function}'."
-        else:
-            msg = f"No {self.vulnerability_type.replace('_', ' ').title()} found in '{target_function}'."
-
-        return self._build_result(found_vuln, target_function, evidence_list, msg)
-
-    def _get_cause(
-        self,
-        state,
-        symbolic_args: List[Any],
-        symbolic_stdin: Any,
-    ) -> Dict[str, Any]:  # state_type is either "errored" or "unconstrained"
-        details = {
-            "input_hex": {},
-        }
-        if symbolic_args:
-            for idx, sym_arg in enumerate(symbolic_args):
-                try:
-                    val = state.solver.eval(sym_arg, cast_to=bytes)
-                    details["input_hex"][f"arg_{idx}"] = val.hex()
-                except Exception as e:
-                    logger.warning(
-                        "Failed to extract arg %d from %s state: %s",
-                        idx,
-                        e,
-                    )
-                    details["input_hex"][f"arg_{idx}"] = "Extraction failed"
-        else:
-            try:
-                poc = state.solver.eval(symbolic_stdin, cast_to=bytes)
-                details["input_hex"]["stdin"] = poc.hex()
-            except Exception as e:
-                logger.warning(
-                    "Failed to extract stdin from %s state: %s",
-                    e,
-                )
-                details["input_hex"]["stdin"] = "Extraction failed"
-
-        logger.debug("Extracted details for %s state: %s", state, details)
-        return details
-
     def _build_result(
         self,
         is_vulnerable: bool = False,
@@ -313,3 +266,106 @@ class BaseMemorySolver(BaseSolver):
             "evidence": evidence,
             "message": message,
         }
+
+    def _advance_past_prologue(self, project, state, max_inst: int = 32):
+        prev_rsp = state.solver.eval(state.regs.rsp)
+        logger.info(
+            "Advancing past function prologue to find stable RSP. Initial RSP: 0x%x",
+            prev_rsp,
+        )
+
+        for _ in range(max_inst):
+            succ = project.factory.successors(state, num_inst=1)
+            if len(succ.successors) != 1:
+                break
+
+            state = succ.successors[0]
+            rsp = state.solver.eval(state.regs.rsp)
+            logger.debug("Current RSP: 0x%x", rsp)
+
+            if rsp + 0x8 < prev_rsp:
+                break
+
+        return state
+
+    def _resolve_struct_addresses(
+        self, state, project, func_addr, structs, dwarf_analyzer, old_rsp, simgr=None
+    ):
+        """Resolves runtime stack addresses of local variables via DWARF."""
+        if not structs:
+            return []
+
+        struct_addresses = {}
+        current_rbp = state.solver.eval(state.regs.rbp)
+        logger.debug("Current RBP: 0x%x", current_rbp)
+
+        for struct in structs:
+            if isinstance(struct, dict):
+                struct_location = struct.get("location")
+                struct_name = struct.get("name")
+                if struct_addresses.get(struct_name):
+                    logger.debug(
+                        f"Struct '{struct_name}' already resolved at address 0x{struct_addresses[struct_name]:x}."
+                    )
+                    continue
+                if struct_location == "stack":
+                    struct_offset = dwarf_analyzer.get_struct_stack_addr(
+                        func_addr, struct_name, state
+                    )
+                    if struct_offset is not None:
+                        retaddr_size = state.arch.bytes
+                        cfa = old_rsp + retaddr_size
+                        logger.debug(
+                            f"Calculated CFA (Canonical Frame Address) for struct '{struct_name}': 0x{cfa:x} (old RSP: 0x{old_rsp:x} + retaddr size: 0x{retaddr_size:x})"
+                        )
+                        struct_addr = cfa + struct_offset  # struct_offset is negative!
+                        logger.debug(
+                            f"Resolved struct '{struct_name}' address: 0x{struct_addr:x} with rbp: 0x{current_rbp:x}"
+                        )
+                        struct_addresses[struct_name] = struct_addr
+                    else:
+                        logger.debug(
+                            f"Could not resolve address for struct '{struct_name}' via DWARF"
+                        )
+                elif struct_location == "heap":
+                    if simgr is None:
+                        continue
+                    for state in simgr.deadended:
+                        list = state.globals.get("allocations", [])
+                        for item in list:
+                            addr = item.get("addr")
+                            if addr in struct_addresses.values():
+                                list.remove(item)
+                                continue
+                            else:
+                                break
+
+                        content = item["addr"]
+                        resolved_addr = struct_addresses.get(struct_name)
+                        if resolved_addr:
+                            logger.debug(
+                                f"Struct '{struct_name}' already resolved at address 0x{resolved_addr:x}."
+                            )
+                            continue
+                        struct_addresses[struct_name] = content
+
+                elif struct_location == "arg":
+                    regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
+                    struct_arg_idx = struct.get("arg_index")
+                    struct_addr = state.solver.eval(
+                        getattr(state.regs, regs[struct_arg_idx])
+                    )
+                    logger.debug(
+                        f"Resolved struct '{struct_name}' address from argument {struct_arg_idx}: 0x{struct_addr:x}"
+                    )
+                    struct_addresses[struct_name] = struct_addr
+                else:
+                    logger.warning(
+                        f"Unsupported struct location '{struct_location}' for struct '{struct_name}'. Skipping."
+                    )
+            else:
+                logger.warning(
+                    f"Invalid struct format: {struct}. Expected a dict with 'name' and 'location'. Skipping."
+                )
+
+        return struct_addresses

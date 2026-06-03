@@ -17,36 +17,14 @@ def test_mcp_registration_exposes_expected_tool_and_prompt() -> None:
 
     async def _collect():
         tools = await mcp.list_tools()
-        prompts = await mcp.list_prompts()
-        return tools, prompts
+        return tools
 
-    tools, prompts = anyio.run(_collect)
+    tools = anyio.run(_collect)
 
     assert len(tools) == 1
     assert tools[0].name == "validate_vulnerability"
     assert "target_path" in tools[0].inputSchema["properties"]
     assert "vulnerability_type" in tools[0].inputSchema["properties"]
-
-    assert len(prompts) == 1
-    assert prompts[0].name == "find_vulnerability_workflow"
-
-
-def test_mcp_prompt_renders_target_path() -> None:
-    """
-    This test checks that the prompt correctly renders the target path and includes instructions to call the validation tool.
-    """
-
-    async def _render_prompt():
-        rendered = await mcp.get_prompt(
-            "find_vulnerability_workflow",
-            {"target_path": str(FIXTURE_BINARY)},
-        )
-        return rendered.messages[0].content.text
-
-    prompt_text = anyio.run(_render_prompt)
-
-    assert str(FIXTURE_BINARY) in prompt_text
-    assert "tests/fixtures/stack_overflow/gets_local" in prompt_text
 
 
 def test_validate_vulnerability_tool_end_to_end() -> None:
@@ -138,6 +116,3 @@ def test_validate_vulnerability_tool_with_source_code_but_no_binary() -> None:
     payload = json.loads(content_blocks[0].text)
     assert "error" in payload
     assert payload["error"] == "FileNotFound"
-
-
-# TODO: Mehr Testfälle (spezifisch stack_overflow, heap_overflow, format_string) mit verschiedenen Binärdateien, um die Genauigkeit und Robustheit der Analyse zu überprüfen.

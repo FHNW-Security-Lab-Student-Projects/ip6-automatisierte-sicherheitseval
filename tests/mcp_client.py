@@ -3,7 +3,7 @@ import logging
 import asyncio
 from pathlib import Path
 import json
-from typing import List, Any
+from typing import List, Any, Dict
 
 from mcp.client.stdio import stdio_client, StdioServerParameters
 from mcp.client.session import ClientSession
@@ -12,7 +12,10 @@ from vuln_validator.utils.logging_config import setup_logging
 
 
 async def run_analysis_cli(
-    binary_path: str, target_function: str = None, function_args: List[Any] = None
+    binary_path: str,
+    target_function: str = None,
+    function_args: List[Any] = None,
+    structs: List[Dict[str, Any]] = None,
 ):
     logger = logging.getLogger("vuln_validator.mcp_client")
     # Define Server parameters (must match the Claude config)
@@ -44,12 +47,14 @@ async def run_analysis_cli(
 
             arguments = {
                 "target_path": str(Path(binary_path).resolve()),
-                "vulnerability_type": "auto",
+                "vulnerability_type": "stack_overflow",
             }
             if target_function:
                 arguments["target_function"] = target_function
             if function_args:
                 arguments["function_args"] = function_args
+            if structs:
+                arguments["structs"] = structs
 
             result = await session.call_tool("validate_vulnerability", arguments)
 
@@ -79,8 +84,9 @@ def main():
     binary_path = sys.argv[1] if len(sys.argv) > 1 else default_binary_path
     target_function = sys.argv[2] if len(sys.argv) > 2 else None
     function_args = json.loads(sys.argv[3]) if len(sys.argv) > 3 else None
+    structs = json.loads(sys.argv[4]) if len(sys.argv) > 4 else None
 
-    asyncio.run(run_analysis_cli(binary_path, target_function, function_args))
+    asyncio.run(run_analysis_cli(binary_path, target_function, function_args, structs))
 
 
 if __name__ == "__main__":

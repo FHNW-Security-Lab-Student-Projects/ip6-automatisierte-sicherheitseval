@@ -32,7 +32,7 @@ class StackOverflowSolver(BaseMemorySolver):
 
             canary_addr = buffer_addr + size
             canary_addr_underflow = buffer_addr - padding_size
-            canary_value = 0x41414141
+            canary_value = 0xDEADBEEF
 
             for addr, kind in (
                 (canary_addr, "overflow"),

@@ -25,8 +25,38 @@ uv sync
 uv run python -c "import vuln_validator; print('ok')"
 ```
 
+## Binary compilation (Linux)
+For reliable exploit analysis, binaries **must** be compiled without protections using the flags below (see **Flag Overview** table).
+
+**C**
+```bash
+gcc ./binary.c -o binary -O0 -fno-omit-frame-pointer -fno-stack-protector -z execstack -no-pie -g -fno-optimize-sibling-calls
+```
+
+**C++**
+```bash
+g++ ./binary.cpp -o ./binary -O0 -fno-omit-frame-pointer -fno-stack-protector -z execstack -fno-exceptions -fno-rtti -no-pie -g fno-optimize-sibling-calls
+```
+
+### Flag Overview
+| Flag | Purpose |
+| --- | --- |
+| -O0 | Disables optimizations, keeps code structure identical to source. |
+| -fno-omit-frame-pointer | Preserves RBP for reliable stack frame traversal and variable location. |
+| -fno-stack-protector | Disables stack canaries to allow overflow simulation. |
+| -z execstack | Marks stack as executable (required for shellcode execution). |
+| -no-pie | Disables ASLR, ensures fixed memory addresses for the binary. |
+| -g | Includes DWARF debug symbols for precise variable/struct identification. |
+| -fno-exceptions | (C++) Removes exception handling overhead and complex control flow. |
+| -fno-rtti | (C++) Removes runtime type information to simplify class analysis. |
+| -fno-optimize-sibling-calls | Prevents tail-call optimization to preserve distinct stack frames. |
+
+
 ## Claude Desktop integration (Windows)
 For Claude to bei able to read and analyze your source-files, MCP-Server musst be configured.
+
+**Note:** Claude Desktop **Code** does **not** need the filesystem MCP server, only the `VulnValidator` MCP server.  
+The filesystem server is only required for **Claude Desktop Chat**.
 
 1. Locate config file:
    - Windows: Press Win + R, enter: %APPDATA%\Claude\claude_desktop_config.json
@@ -53,8 +83,8 @@ When defining inputs for the target function, arguments are classified into thre
 
 | Type	| Description	| Required Property |
 | ----- | ------------- | ----------------- |
-| symbolic_pointer	| A pointer referencing a memory region to be filled with symbolic data.	| size (bytes) |
-| symbolic_value	| A primitive value (integer, char) to be treated as symbolic input.	| size (bits) |
+| pointer	| A pointer referencing a memory region to be filled with symbolic data.	| size (bytes) |
+| variable	| A primitive value (integer, char) to be treated as symbolic input.	| size (bits) |
 | concrete	| A fixed, constant value passed directly.	| value |
 
 Note: If the target function takes no arguments, the argument list is empty.
@@ -78,8 +108,21 @@ Examples:
 ```bash
 uv run python tests/mcp_client.py tests/fixtures/stack_overflow/gets_local.c vulnerable_function
 
-uv run python tests/mcp_client.py tests/fixtures/stack_overflow/strcpy_pointer.c copy_input '[{"type": "symbolic_pointer", "size": 64}]'
+uv run python tests/mcp_client.py tests/fixtures/stack_overflow/strcpy_pointer.c copy_input '[{"type": "pointer", "size": 64}]'
+
+uv run python tests/mcp_client.py tests/fixtures/heap_overflow/simple_overflow_before_canary create_user '[{"type": "pointer", "size": 64}]' '[{"type": "struct", "name": "u", "location": "stack","size": 20,"fields": [{"type": "variable", "offset": 0, "size": 16, "is_input": true},{"type": "variable", "offset": 16, "size": 4, "is_critical": true}]}]'
 ```
+
+## Configuration
+The framework reads `config.toml` from the repository root.
+
+- `max_steps`: Upper bound on simulation steps (limits exploration time).
+- `step_size`: Steps per iteration (every iteration VulnValidator checks checks how many states are active/unconstrained/errored).
+- `symbolic_stdin_bytes`: Size of symbolic stdin buffer (too small may miss bugs).
+- `heap_start`: Start address for fake heap (change if it collides with mapped regions).
+- `auto_stop_on_first_found`: In `auto` mode, stop after first positive result.
+- `specific_stop_on_first_found`: For a specific type, stop when a vulnerability is found.
+- `specific_continue_on_no_find`: For a specific type, continue when no vulnerability is found.
 
 ## Developer
 

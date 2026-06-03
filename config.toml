@@ -1,0 +1,24 @@
+[solver.base_memory.simulation]
+# Max number of step() calls
+max_steps = 500
+
+# Step size per step()
+step_size = 1
+
+[solver.base_memory.input]
+# Size of symbolic stdin (bytes)
+symbolic_stdin_bytes = 512
+
+[solver.heap]
+# Start address for fake heap
+heap_start = 0x600000
+
+[analyzer]
+# Auto mode: stop after first vulnerability found
+auto_stop_on_first_found = false
+
+# Specific vulnerability type: stop when vulnerability found
+specific_stop_on_first_found = true
+
+# Specific vulnerability type: continue when no vulnerability found
+specific_continue_on_no_find = true

@@ -1,12 +1,4 @@
 {
-  "preferences": {
-    "menuBarEnabled": false,
-    "legacyQuickEntryEnabled": false,
-    "coworkScheduledTasksEnabled": false,
-    "ccdScheduledTasksEnabled": false,
-    "coworkWebSearchEnabled": true,
-    "sidebarMode": "chat"
-  },
   "mcpServers": {
     "VulnValidator": {
       "command": "uv",

@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from vuln_validator.core.angr_engine import AngrAnalyzer
+from vuln_validator.core.angr_analyzer import AngrAnalyzer
 from vuln_validator.core.solvers.base_solver import BaseSolver
 
 
@@ -26,10 +26,11 @@ class DummySolver(BaseSolver):
     def vulnerability_type(self) -> str:
         return self._vuln_type
 
-    def solve(self, project, target_function, function_args) -> Dict[str, Any]:
+    def solve(self, project, target_function, function_args, structs) -> Dict[str, Any]:
         self._calls.append(self._vuln_type)
         self._received_target = target_function
         self._received_args = function_args
+        self._received_structs = structs
         if self._error:
             raise self._error
         return self._result
@@ -217,3 +218,79 @@ def test_run_analysis_passes_target_function_to_solver(monkeypatch) -> None:
 
     assert solver._received_target == "vulnerable_func"
     assert calls == ["stack_overflow"]
+
+
+def _set_config(monkeypatch, **overrides):
+    cfg = {
+        "auto_stop_on_first_found": False,
+        "specific_stop_on_first_found": True,
+        "specific_continue_on_no_find": True,
+    }
+    cfg.update(overrides)
+    monkeypatch.setattr(
+        "vuln_validator.core.angr_analyzer.get_analyzer_config",
+        lambda: cfg,
+    )
+
+
+def test_run_analysis_auto_stops_on_first_positive_when_config_enabled(
+    monkeypatch,
+) -> None:
+    calls: List[str] = []
+    solvers = [
+        DummySolver(
+            "stack_overflow",
+            calls,
+            {
+                "is_vulnerable": True,
+                "type": "stack_overflow",
+                "evidence": [],
+                "message": "Stack found.",
+            },
+        ),
+        DummySolver(
+            "heap_overflow",
+            calls,
+            {
+                "is_vulnerable": True,
+                "type": "heap_overflow",
+                "evidence": [],
+                "message": "Heap found.",
+            },
+        ),
+    ]
+    analyzer = _analyzer_with_solvers(monkeypatch, solvers)
+    _set_config(monkeypatch, auto_stop_on_first_found=True)
+
+    result = analyzer.run_analysis("auto")
+
+    assert calls == ["stack_overflow"]
+    assert result["analyzed_types"] == ["stack_overflow"]
+    assert result["is_vulnerable"] is True
+
+
+def test_run_analysis_specific_type_stops_on_first_negative_when_config_disabled(
+    monkeypatch,
+) -> None:
+    calls: List[str] = []
+    solvers = [
+        DummySolver(
+            "heap_overflow",
+            calls,
+            {
+                "is_vulnerable": False,
+                "type": "heap_overflow",
+                "evidence": [],
+                "message": "No heap.",
+            },
+        ),
+        DummySolver("stack_overflow", calls),
+    ]
+    analyzer = _analyzer_with_solvers(monkeypatch, solvers)
+    _set_config(monkeypatch, specific_continue_on_no_find=False)
+
+    result = analyzer.run_analysis("heap_overflow")
+
+    assert calls == ["heap_overflow"]
+    assert result["analyzed_types"] == ["heap_overflow"]
+    assert result["is_vulnerable"] is False

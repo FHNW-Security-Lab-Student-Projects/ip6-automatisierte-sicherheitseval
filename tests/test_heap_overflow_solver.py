@@ -34,6 +34,32 @@ TEST_CASES = [
         "args": None,
         "should_find": True,
     },
+    {
+        "binary": "tests/fixtures/heap_overflow/struct_in_heap",
+        "func": "create_user",
+        "args": [
+            {"type": "pointer", "size": 64},
+        ],
+        "structs": [
+            {
+                "type": "struct",
+                "name": "u",
+                "location": "heap",
+                "size": 916,
+                "fields": [
+                    {
+                        "size": 16,
+                        "is_input": True,
+                    },
+                    {
+                        "size": 4,
+                        "is_critical": True,
+                    },
+                ],
+            }
+        ],
+        "should_find": True,
+    },
     # --- Safe binaries ---
     {
         "binary": "tests/fixtures/common/heap_safe_strict",
@@ -45,6 +71,30 @@ TEST_CASES = [
         "binary": "tests/fixtures/common/heap_safe_no_write",
         "func": "main",
         "args": None,
+        "should_find": False,
+    },
+    {
+        "binary": "tests/fixtures/common/struct_in_heap_safe",
+        "func": "create_user",
+        "args": [{"type": "pointer", "size": 64, "is_struct": True}],
+        "structs": [
+            {
+                "type": "struct",
+                "name": "u",
+                "location": "heap",
+                "size": 916,
+                "fields": [
+                    {
+                        "size": 16,
+                        "is_input": True,
+                    },
+                    {
+                        "size": 4,
+                        "is_critical": True,
+                    },
+                ],
+            }
+        ],
         "should_find": False,
     },
 ]
@@ -72,7 +122,10 @@ class TestHeapOverflowSolver:
 
         solver = HeapOverflowSolver()
         result = solver.solve(
-            proj, target_function=case["func"], function_args=case["args"]
+            proj,
+            target_function=case["func"],
+            function_args=case["args"],
+            structs=case.get("structs", []),
         )
 
         if case["should_find"]:

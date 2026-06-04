@@ -331,7 +331,9 @@ class BaseMemorySolver(BaseSolver):
                     if simgr is None:
                         continue
                     for state in simgr.deadended:
-                        list = state.globals.get("allocations", [])
+                        list = state.globals.get("allocations", None)
+                        if list is None:
+                            continue
                         for item in list:
                             addr = item.get("addr")
                             if addr in struct_addresses.values():

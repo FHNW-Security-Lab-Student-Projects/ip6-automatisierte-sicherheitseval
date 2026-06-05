@@ -129,7 +129,9 @@ def test_run_analysis_specific_type_continues_when_first_matching_negative(
     monkeypatch,
 ) -> None:
     """
-    Tests that if a specific vulnerability type is requested and the first matching solver returns a negative result (not vulnerable), the analyzer continues to run the remaining solvers in the execution plan to ensure comprehensive analysis, rather than stopping after the first match.
+    Tests that if a specific vulnerability type is requested and the first matching solver
+    returns a negative result, the analyzer continues to run remaining solvers
+    IF the config 'specific_continue_on_no_find' is True.
     """
     calls: List[str] = []
     solvers = [
@@ -156,6 +158,8 @@ def test_run_analysis_specific_type_continues_when_first_matching_negative(
         ),
     ]
     analyzer = _analyzer_with_solvers(monkeypatch, solvers)
+
+    _set_config(monkeypatch, specific_continue_on_no_find=True)
 
     result = analyzer.run_analysis("heap_overflow")
 

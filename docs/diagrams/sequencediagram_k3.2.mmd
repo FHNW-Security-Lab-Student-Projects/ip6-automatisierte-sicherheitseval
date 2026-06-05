@@ -14,10 +14,10 @@ sequenceDiagram
     Note over User, Binary: Phase 2: Validation Request
     LLM->>MCP: Tool Call: validate_vulnerability()
     MCP->>Server: Forward Request (Target, Args)
-    Server->>Server: Validate Input (Schema)
+    Server->>Server: Parameter Type Check
 
     Note over User, Binary: Phase 3: Symbolic Execution
-    Server->>Solver: Start Symbolic Execution
+    Server->>Solver: Delegate Analysis
     Solver->>Binary: Simulate Execution (Symbolic State)
     Solver->>Solver: Check for Crash / Canary Hit
 

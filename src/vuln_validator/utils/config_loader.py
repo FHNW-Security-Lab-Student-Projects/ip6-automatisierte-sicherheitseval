@@ -29,9 +29,13 @@ _DEFAULTS: Dict[str, Any] = {
         "specific_stop_on_first_found": True,
         "specific_continue_on_no_find": True,
     },
+    "logging": {
+        "log_level": "INFO",
+    },
 }
 
 _CONFIG_CACHE: Optional[Dict[str, Any]] = None
+VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 
 
 def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
@@ -59,6 +63,16 @@ def _coerce_positive_int(value: Any, default: int, name: str) -> int:
 def _coerce_bool(value: Any, default: bool, name: str) -> bool:
     if isinstance(value, bool):
         return value
+    logger.warning("Invalid %s=%r in config. Using default %s.", name, value, default)
+    return default
+
+
+def _coerce_log_level(value: Any, default: str, name: str) -> str:
+    if value is None:
+        return default
+    level = str(value).upper()
+    if level in VALID_LOG_LEVELS:
+        return level
     logger.warning("Invalid %s=%r in config. Using default %s.", name, value, default)
     return default
 
@@ -156,3 +170,10 @@ def get_analyzer_config() -> Dict[str, Any]:
         ),
     ]
     return _build_config(("analyzer",), specs)
+
+
+def get_log_level_config() -> Dict[str, Any]:
+    specs = [
+        ("log_level", ("log_level",), _coerce_log_level),
+    ]
+    return _build_config(("logging",), specs)

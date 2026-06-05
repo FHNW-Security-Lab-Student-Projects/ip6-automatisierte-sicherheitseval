@@ -21,4 +21,8 @@ auto_stop_on_first_found = false
 specific_stop_on_first_found = true
 
 # Specific vulnerability type: continue when no vulnerability found
-specific_continue_on_no_find = true
+specific_continue_on_no_find = false
+
+[logging]
+# Log level (DEBUG, INFO, WARNING, ERROR)
+log_level = "DEBUG"

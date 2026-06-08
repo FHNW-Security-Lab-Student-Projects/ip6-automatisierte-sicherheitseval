@@ -169,15 +169,18 @@ class DwarfAnalyzer:
             if var_name != struct_name:
                 continue
 
+            # location attribute should contain the DWARF expression for the variable's address
             loc_attr = child.attributes.get("DW_AT_location")
             if not loc_attr:
                 return None
 
+            # loc_expr is a list of bytes representing the DWARF expression.
             loc_expr = loc_attr.value
             # Expect DW_OP_fb_offset (0x91)
             if not loc_expr or loc_expr[0] != 0x91:
                 return None
 
+            # the offset from the frame base, which is typically the stack pointer at function entry.
             return self._decode_sleb128(loc_expr[1:])
 
         return None

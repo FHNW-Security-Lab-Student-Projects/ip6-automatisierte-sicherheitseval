@@ -328,6 +328,12 @@ class BaseMemorySolver(BaseSolver):
                             f"Could not resolve address for struct '{struct_name}' via DWARF"
                         )
                 elif struct_location == "heap":
+                    resolved_addr = struct_addresses.get(struct_name)
+                    if resolved_addr:
+                        logger.debug(
+                            f"Struct '{struct_name}' already resolved at address 0x{resolved_addr:x}."
+                        )
+                        continue
                     if simgr is None:
                         continue
                     for state in simgr.deadended:
@@ -343,12 +349,6 @@ class BaseMemorySolver(BaseSolver):
                                 break
 
                         content = item["addr"]
-                        resolved_addr = struct_addresses.get(struct_name)
-                        if resolved_addr:
-                            logger.debug(
-                                f"Struct '{struct_name}' already resolved at address 0x{resolved_addr:x}."
-                            )
-                            continue
                         struct_addresses[struct_name] = content
 
                 elif struct_location == "arg":

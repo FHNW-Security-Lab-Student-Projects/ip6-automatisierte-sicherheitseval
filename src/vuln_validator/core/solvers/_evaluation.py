@@ -5,6 +5,20 @@ from typing import List, Dict, Any
 logger = logging.getLogger(__name__)
 
 
+def _format_input_bytes(data: bytes, max_preview: int = 1024) -> str:
+    if not data:
+        return ""
+
+    if all(b == 0 for b in data):
+        return f"<all-zero len={len(data)}>"
+
+    # Show only a compact preview, but preserve length info
+    preview = data[:max_preview].hex()
+    if len(data) > max_preview:
+        return f"{preview}... <len={len(data)}>"
+    return preview
+
+
 def _get_cause(
     state,
     symbolic_args: List[Any],
@@ -12,31 +26,31 @@ def _get_cause(
 ) -> Dict[str, Any]:  # state_type is either "errored" or "unconstrained"
     details = {
         "input_hex": {},
+        "stdin_used": False,
     }
-    if symbolic_args:
-        for idx, sym_arg in enumerate(symbolic_args):
-            try:
-                val = state.solver.eval(sym_arg, cast_to=bytes)
-                details["input_hex"][f"arg_{idx}"] = val.hex()
-            except Exception as e:
-                logger.warning(
-                    "Failed to extract arg %d from %s state: %s",
-                    idx,
-                    e,
-                )
-                details["input_hex"][f"arg_{idx}"] = "Extraction failed"
-    else:
+
+    for idx, sym_arg in enumerate(symbolic_args):
         try:
-            poc = state.solver.eval(symbolic_stdin, cast_to=bytes)
-            details["input_hex"]["stdin"] = poc.hex()
+            val = state.solver.eval(sym_arg, cast_to=bytes)
+            details["input_hex"][f"arg_{idx}"] = _format_input_bytes(val)
         except Exception as e:
             logger.warning(
-                "Failed to extract stdin from %s state: %s",
+                "Failed to extract arg %d from %s state: %s",
+                idx,
+                state,
                 e,
             )
-            details["input_hex"]["stdin"] = "Extraction failed"
+            details["input_hex"][f"arg_{idx}"] = "Extraction failed"
 
-    logger.debug("Extracted details for %s state: %s", state, details)
+    try:
+        poc = state.solver.eval(symbolic_stdin, cast_to=bytes)
+        details["stdin_used"] = any(b != 0 for b in poc)
+        details["input_hex"]["stdin"] = _format_input_bytes(poc)
+    except Exception as e:
+        logger.warning("Failed to extract stdin from %s state: %s", state, e)
+        details["input_hex"]["stdin"] = "Extraction failed"
+
+    # logger.debug("Extracted details for %s state: %s", state, details)
     return details
 
 

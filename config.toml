@@ -24,5 +24,5 @@ specific_stop_on_first_found = true
 specific_continue_on_no_find = false
 
 [logging]
-# Log level (DEBUG, INFO, WARNING, ERROR)
-log_level = "DEBUG"
+# Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+log_level = "INFO"

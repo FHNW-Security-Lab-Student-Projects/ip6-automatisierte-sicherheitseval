@@ -14,6 +14,7 @@ from vuln_validator.utils.logging_config import setup_logging
 async def run_analysis_cli(
     binary_path: str,
     target_function: str = None,
+    vuln_type: str = "auto",
     function_args: List[Any] = None,
     structs: List[Dict[str, Any]] = None,
 ):
@@ -25,7 +26,7 @@ async def run_analysis_cli(
         cwd=str(Path(__file__).parent.parent),  # Project root
     )
 
-    logger.info(f"Connecting to MCP Server for path: {binary_path}")
+    logger.info(f"Connecting to MCP Server for binary path: {binary_path}")
 
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
@@ -36,14 +37,14 @@ async def run_analysis_cli(
             # 2. List Tools
             tools = await session.list_tools()
             tool_names = [t.name for t in tools.tools]
-            logger.info(f"Available tools: {tool_names}")
+            logger.debug(f"Available tools: {tool_names}")
 
             if "validate_vulnerability" not in tool_names:
                 logger.error("Tool 'validate_vulnerability' not found on server!")
                 return
 
             # 3. Call the Tool
-            logger.info(f"Calling validate_vulnerability for {binary_path}")
+            logger.debug(f"Calling validate_vulnerability for {binary_path}")
 
             arguments = {
                 "target_path": str(Path(binary_path).resolve()),
@@ -51,6 +52,8 @@ async def run_analysis_cli(
             }
             if target_function:
                 arguments["target_function"] = target_function
+            if vuln_type:
+                arguments["vulnerability_type"] = vuln_type
             if function_args:
                 arguments["function_args"] = function_args
             if structs:
@@ -60,10 +63,12 @@ async def run_analysis_cli(
 
             # 4. Process Result
             if result.isError:
-                logger.error("Tool execution failed!")
+                logger.error(
+                    "Tool execution failed! Details: session.call_tool returned an error."
+                )
                 for content in result.content:
                     if hasattr(content, "text"):
-                        print(f"Error: {content.text}")
+                        logger.error(f"Error content: {content.text}")
                 return
 
             # Output parsing
@@ -83,10 +88,15 @@ def main():
 
     binary_path = sys.argv[1] if len(sys.argv) > 1 else default_binary_path
     target_function = sys.argv[2] if len(sys.argv) > 2 else None
-    function_args = json.loads(sys.argv[3]) if len(sys.argv) > 3 else None
-    structs = json.loads(sys.argv[4]) if len(sys.argv) > 4 else None
+    vuln_type = sys.argv[3] if len(sys.argv) > 3 else "auto"
+    function_args = json.loads(sys.argv[4]) if len(sys.argv) > 4 else None
+    structs = json.loads(sys.argv[5]) if len(sys.argv) > 5 else None
 
-    asyncio.run(run_analysis_cli(binary_path, target_function, function_args, structs))
+    asyncio.run(
+        run_analysis_cli(
+            binary_path, target_function, vuln_type, function_args, structs
+        )
+    )
 
 
 if __name__ == "__main__":

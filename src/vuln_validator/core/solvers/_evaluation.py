@@ -87,8 +87,7 @@ def evaluate_results(
 
     # Check 2: Canaries (Data Corruption)
     for state in chain(simgr.active, simgr.deadended, simgr.unconstrained):
-        if canary_hit:
-            found_vuln = True
+        if found_vuln:
             break
         for c in canaries:
             try:
@@ -123,9 +122,14 @@ def evaluate_results(
                     "Failed to check canary at address 0x%x: %s", c["addr"], e
                 )
                 continue
+        if canary_hit:
+            found_vuln = True
+            break
 
     # Check 3: Intra-struct Corruption
     for state in chain(simgr.active, simgr.deadended):
+        if found_vuln:
+            break
         if len(struct_addresses) != len(structs):
             logger.warning(
                 "Mismatch between resolved struct addresses and local struct definitions. Skipping intra-struct corruption check."

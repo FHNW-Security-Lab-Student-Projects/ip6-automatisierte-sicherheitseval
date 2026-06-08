@@ -32,15 +32,12 @@ class BaseMemorySolver(BaseSolver):
         if not target_function:
             return self._build_result(False, None, [], "No target function specified.")
 
+        # Ensure CFG is available for function resolution
         if not project.kb.functions:
             project.analyses.CFGFast()
 
         # 1. Environment Setup
         self._setup_environment(project)
-
-        # Load solver config
-        solver_cfg = get_base_memory_solver_config()
-        symbolic_stdin_bytes = solver_cfg["symbolic_stdin_bytes"]
 
         # 2. Function Address Resolution
         try:
@@ -53,9 +50,6 @@ class BaseMemorySolver(BaseSolver):
                     if target_function in sym.name:
                         symbol = sym
                 if symbol is None:
-                    logger.error(
-                        "Target function '%s' not found in binary.", target_function
-                    )
                     raise KeyError
             addr = project.kb.functions[symbol.rebased_addr].addr
             logger.debug(
@@ -69,6 +63,10 @@ class BaseMemorySolver(BaseSolver):
                 [],
                 f"Analysis aborted: Target function '{target_function}' does not exist or has no symbol table entry.",
             )
+
+        # Load solver config
+        solver_cfg = get_base_memory_solver_config()
+        symbolic_stdin_bytes = solver_cfg["symbolic_stdin_bytes"]
 
         # 3. Initial State Setup
         symbolic_stdin = claripy.BVS("my_input", symbolic_stdin_bytes * 8)
@@ -93,14 +91,15 @@ class BaseMemorySolver(BaseSolver):
         # 4. Specific setup delegation (The child solver does the magic)
         symbolic_args = self._place_buffers_and_canaries(state, project, function_args)
 
-        struct_addresses = self._resolve_struct_addresses(
-            state, project, addr, structs, dwarf_analyzer, old_rsp, None
-        )
-
         if symbolic_args is None:  # Error during buffer/canary setup
             return self._build_result(
                 False, target_function, [], "Failed to setup buffers."
             )
+
+        # get struct addresses for struct in stored in stack und structs passed as arguments
+        struct_addresses = self._resolve_struct_addresses(
+            state, project, addr, structs, dwarf_analyzer, old_rsp, None
+        )
 
         # 5. Simulation Loop
         simgr = project.factory.simulation_manager(state)
@@ -170,6 +169,10 @@ class BaseMemorySolver(BaseSolver):
         base_offset: int = 0x80,  # because of redzone
         buffer_padding: int = 0x0,
     ):
+        """
+        Places arguments in registers and/or memory as needed, and returns a list of symbolic variables for the arguments.
+        Supports both concrete and symbolic arguments, as well as struct arguments (which are treated as symbolic buffers).
+        """
         symbolic_args = []
         buffer_infos = []
         current_offset = base_offset
@@ -237,11 +240,12 @@ class BaseMemorySolver(BaseSolver):
         return symbolic_args, buffer_infos
 
     def _write_to_register(self, regs, state, i, buffer_addr):
+        """Writes the given buffer address to the appropriate register based on the argument index."""
         if i < len(regs):
             setattr(state.regs, regs[i], buffer_addr)
         else:
             logger.warning(
-                "More than 6 arguments provided. Additional arguments beyond the 6th are not supported in this implementation."
+                "More than 6 arguments provided. Additional arguments beyond the 6th are not yet supported in this implementation."
             )
 
     def _collect_canaries(self, simgr):
@@ -268,8 +272,12 @@ class BaseMemorySolver(BaseSolver):
         }
 
     def _advance_past_prologue(self, project, state, max_inst: int = 32):
+        """
+        Advances the state past the function prologue to find a stable RSP value for stack-based solvers.
+        This is necessary because the initial call state may have an RSP that is not yet adjusted by the function prologue, which can cause issues for solvers that rely on stack-based memory layouts
+        """
         prev_rsp = state.solver.eval(state.regs.rsp)
-        logger.info(
+        logger.debug(
             "Advancing past function prologue to find stable RSP. Initial RSP: 0x%x",
             prev_rsp,
         )
@@ -281,8 +289,8 @@ class BaseMemorySolver(BaseSolver):
 
             state = succ.successors[0]
             rsp = state.solver.eval(state.regs.rsp)
-            logger.debug("Current RSP: 0x%x", rsp)
 
+            # Once we see a significant decrease in RSP, we can assume we've passed the prologue (which typically pushes the old RSP and sets up the new stack frame)
             if rsp + 0x8 < prev_rsp:
                 break
 
@@ -291,11 +299,17 @@ class BaseMemorySolver(BaseSolver):
     def _resolve_struct_addresses(
         self, state, project, func_addr, structs, dwarf_analyzer, old_rsp, simgr=None
     ):
-        """Resolves runtime stack addresses of local variables via DWARF."""
+        """
+        Resolves addresses for structs based on their specified location (stack, heap, or argument).
+        For stack structs, it uses DWARF information to calculate the address based on the current RSP and the struct's offset from the stack frame.
+        For heap structs, it looks for allocations recorded in the state globals (which should have been populated by the heap hooks).
+        For argument structs, it reads the address directly from the appropriate register based on the argument index.
+        """
         if not structs:
             return []
 
         struct_addresses = {}
+        # Get current RBP for stack-based struct address calculations (CFA calculations)
         current_rbp = state.solver.eval(state.regs.rbp)
         logger.debug("Current RBP: 0x%x", current_rbp)
 
@@ -314,6 +328,7 @@ class BaseMemorySolver(BaseSolver):
                     )
                     if struct_offset is not None:
                         retaddr_size = state.arch.bytes
+                        # cfa is rsp value at function entry, but with call_state we start after the call instruction, so we need to add the size of the return address to get the original CFA
                         cfa = old_rsp + retaddr_size
                         logger.debug(
                             f"Calculated CFA (Canonical Frame Address) for struct '{struct_name}': 0x{cfa:x} (old RSP: 0x{old_rsp:x} + retaddr size: 0x{retaddr_size:x})"

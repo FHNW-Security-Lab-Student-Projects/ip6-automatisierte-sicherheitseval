@@ -65,6 +65,13 @@ def evaluate_results(
     vulnerability_type: str,
     build_result,
 ):
+    """
+    Evaluates the final states in the simulation manager to determine if a vulnerability was found.
+    Checks for:
+    1. Symbolic RIP in unconstrained states (indicates control flow hijack)
+    2. Canary integrity (indicates overflow)
+    3. Intra-struct corruption (if struct definitions are provided)
+    """
     found_vuln = False
     evidence_list = []
     canary_hit = False
@@ -81,6 +88,7 @@ def evaluate_results(
     # Check 2: Canaries (Data Corruption)
     for state in chain(simgr.active, simgr.deadended, simgr.unconstrained):
         if canary_hit:
+            found_vuln = True
             break
         for c in canaries:
             try:
@@ -115,10 +123,6 @@ def evaluate_results(
                     "Failed to check canary at address 0x%x: %s", c["addr"], e
                 )
                 continue
-
-        if canary_hit:
-            found_vuln = True
-            break
 
     # Check 3: Intra-struct Corruption
     for state in chain(simgr.active, simgr.deadended):

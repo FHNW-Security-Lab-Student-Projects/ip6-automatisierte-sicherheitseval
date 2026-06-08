@@ -75,6 +75,7 @@ class DwarfAnalyzer:
             elem = die.get_DIE_from_attribute("DW_AT_type")
             elem_size = self._get_type_size(elem) or 0
             count = 1
+            # iterate over subrange children to get total count (supports multi-dimensional arrays)
             for sr in die.iter_children():
                 if sr.tag == "DW_TAG_subrange_type":
                     if "DW_AT_count" in sr.attributes:
@@ -132,7 +133,9 @@ class DwarfAnalyzer:
             return None
 
         best = 0
+        # Iterate over children of the function DIE to find variables and parameters
         for child in func_die.iter_children():
+            # We are interested in both local variables and formal parameters
             if child.tag not in ("DW_TAG_variable", "DW_TAG_formal_parameter"):
                 continue
 
@@ -146,7 +149,7 @@ class DwarfAnalyzer:
     def get_struct_stack_addr(self, func_addr, struct_name, state):
         """
         Resolves runtime stack address of a local variable via DWARF.
-        Returns int address or None. Requires -g flag.
+        Returns int address or None.
         """
         func_die = self._find_subprogram_die(func_addr)
         if not func_die:
@@ -187,14 +190,14 @@ class DwarfAnalyzer:
 
     def adjust_libc_limits(self, state, addr):
         """
-        Convenience method: Adjusts libc limits based on max local size found at addr.
-        Equivalent to the old adjust_libc_limits_from_locals function.
+        Adjusts libc max_str_len and buf_symbolic_bytes based on the maximum local variable size at 'addr'.
+        This helps ensure that symbolic strings are large enough to trigger overflows when appropriate.
         """
         if not hasattr(state, "libc"):
             return
 
         bound = self.get_max_local_size(addr)
         if bound:
-            bound += 1  # +1 for null terminator
+            bound += 1  # +1 for overflow scenarios
             state.libc.max_str_len = max(state.libc.max_str_len, bound)
             state.libc.buf_symbolic_bytes = max(state.libc.buf_symbolic_bytes, bound)

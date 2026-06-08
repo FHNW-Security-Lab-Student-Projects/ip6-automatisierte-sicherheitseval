@@ -27,7 +27,7 @@ class BaseSolver(ABC):
             target_function: Optional name of the function to focus the analysis on. If None, analyzes the entire binary.
 
         Returns:
-            A dictionary with: # TODO
+            A dictionary with:
             - 'is_vulnerable': bool
             - 'type': str (vulnerability type)
             - 'target_function': str (the function analyzed)

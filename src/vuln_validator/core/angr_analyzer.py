@@ -28,20 +28,17 @@ class AngrAnalyzer:
             logger.error(f"Provided path '{path}' does not exist.")
             raise FileNotFoundError(f"Provided path '{path}' does not exist.")
 
-        if path.suffix in [".c", ".cpp"]:  # TODO Erweitern
+        if path.suffix in [".c", ".cpp"]:
             binary_candidate = path.with_suffix("")
             if binary_candidate.exists():
-                logger.info(
+                logger.debug(
                     f"Resolved source file '{path}' to binary '{binary_candidate}'."
                 )
                 return str(binary_candidate)
             else:
-                logger.warning(
-                    f"Source file '{path}' provided but corresponding binary '{binary_candidate}' not found."
-                )
-                raise FileNotFoundError(
-                    f"Source file '{path}' provided but corresponding binary '{binary_candidate}' not found."
-                )
+                warning_msg = f"Source file '{path}' provided but corresponding binary '{binary_candidate}' not found."
+                logger.warning(warning_msg)
+                raise FileNotFoundError(warning_msg)
 
         return str(path)
 
@@ -76,9 +73,9 @@ class AngrAnalyzer:
             return registered_solvers
 
         remaining = [s for s in registered_solvers if s.vulnerability_type != vuln_type]
-        return (
-            matching + remaining
-        )  # run requested type first, then the rest for comprehensive analysis
+
+        # run requested type first, then the rest for comprehensive analysis
+        return matching + remaining
 
     def run_analysis(
         self,

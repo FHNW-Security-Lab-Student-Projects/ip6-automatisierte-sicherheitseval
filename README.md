@@ -93,7 +93,7 @@ Note: If the target function takes no arguments, the argument list is empty.
 Run the direct analysis script:
 
 ```bash
-uv run python tests/mcp_client.py <path_to_source> <entry_point> <vulnerable_function> <vulnerability_type> '<json_args>' '<structs>'
+uv run python tests/mcp_client.py <path_to_source> <vulnerable_function> <vulnerability_type> '<json_args>' '<structs>'
 ```
 
 Parameters:

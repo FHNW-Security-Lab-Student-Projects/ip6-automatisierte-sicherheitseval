@@ -26,6 +26,12 @@ uv run python -c "import vuln_validator; print('ok')"
 ```
 
 ## Binary compilation (Linux)
+Target binaries **must** be compiled for Linux (ELF format). 
+- **Linux/macOS users:** Compile natively.
+- **Windows users:** Use **WSL2** (Windows Subsystem for Linux) to compile. 
+
+> **Note:** Native Windows binaries (PE format, `.exe`) are **not supported**. The analysis engine (`angr`) and the DWARF parsing logic are specifically optimized for the Linux ELF binary format and ABI.
+
 For reliable exploit analysis, binaries **must** be compiled without protections using the flags below (see **Flag Overview** table).
 
 **C**
@@ -112,7 +118,7 @@ uv run python tests/mcp_client.py tests/fixtures/stack_overflow/gets_local.c vul
 
 uv run python tests/mcp_client.py tests/fixtures/stack_overflow/strcpy_pointer.c copy_input stack_overflow '[{"type": "pointer", "size": 64}]'
 
-uv run python tests/mcp_client.py tests/fixtures/heap_overflow/simple_overflow_before_canary create_user heap_overflow '[{"type": "pointer", "size": 64}]' '[{"type": "struct", "name": "u", "location": "stack","size": 20,"fields": [{"type": "variable", "offset": 0, "size": 16, "is_input": true},{"type": "variable", "offset": 16, "size": 4, "is_critical": true}]}]'
+uv run python tests/mcp_client.py tests/fixtures/heap_overflow/struct_in_heap.c create_user heap_overflow '[{"type": "pointer", "size": 64}]' '[{"type": "struct", "name": "u", "location": "stack","size": 20,"fields": [{"type": "variable", "offset": 0, "size": 16, "is_input": true},{"type": "variable", "offset": 16, "size": 4, "is_critical": true}]}]'
 
 # struct passed in arg
 uv run python tests/mcp_client.py tests/fixtures/stack_overflow/struct_in_pointer.c create_user auto '[{"type": "pointer", "size": 64},{"type": "pointer", "size": 916, "is_struct": true}]' '[{"type": "struct", "name": "u", "location": "arg", "arg_index":1,"size": 20,"fields": [{"size": 16, "is_input": true},{"size": 4, "is_critical": true}]}]'

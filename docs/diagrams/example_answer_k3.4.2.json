@@ -1,0 +1,19 @@
+{
+  "requested_type": "stack_overflow",
+  "analyzed_types": ["stack_overflow"],
+  "is_vulnerable": true,
+  "evidence": [
+    {
+      "input_hex": {
+        "arg_0": "0123456789abcdef0123456789abcdef"
+      },
+      "state_type": "intra_struct_corruption",
+      "description": "Critical field at offset 16 in struct 'u' became symbolic.",
+      "source_solver": "stack_overflow"
+    }
+  ],
+  "messages": [
+    "Stack Overflow confirmed in 'create_user'."
+  ],
+  "target_function": "create_user"
+}

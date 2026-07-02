@@ -118,7 +118,7 @@ uv run python tests/mcp_client.py tests/fixtures/stack_overflow/gets_local.c vul
 
 uv run python tests/mcp_client.py tests/fixtures/stack_overflow/strcpy_pointer.c copy_input stack_overflow '[{"type": "pointer", "size": 64}]'
 
-uv run python tests/mcp_client.py tests/fixtures/heap_overflow/struct_in_heap.c create_user heap_overflow '[{"type": "pointer", "size": 64}]' '[{"type": "struct", "name": "u", "location": "stack","size": 20,"fields": [{"type": "variable", "offset": 0, "size": 16, "is_input": true},{"type": "variable", "offset": 16, "size": 4, "is_critical": true}]}]'
+uv run python tests/mcp_client.py tests/fixtures/heap_overflow/struct_in_heap.c create_user heap_overflow '[{"type": "pointer", "size": 64}]' '[{"type": "struct", "name": "u", "location": "heap","size": 20,"fields": [{"type": "variable", "size": 16, "is_input": true},{"type": "variable", "size": 4, "is_critical": true}]}]'
 
 # struct passed in arg
 uv run python tests/mcp_client.py tests/fixtures/stack_overflow/struct_in_pointer.c create_user auto '[{"type": "pointer", "size": 64},{"type": "pointer", "size": 916, "is_struct": true}]' '[{"type": "struct", "name": "u", "location": "arg", "arg_index":1,"size": 20,"fields": [{"size": 16, "is_input": true},{"size": 4, "is_critical": true}]}]'

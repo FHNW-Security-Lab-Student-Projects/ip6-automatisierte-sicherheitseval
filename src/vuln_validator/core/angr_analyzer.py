@@ -115,8 +115,8 @@ class AngrAnalyzer:
 
         for index, solver in enumerate(execution_plan):
             master_result["analyzed_types"].append(solver.vulnerability_type)
+            start_time = time.time()
             try:
-                start_time = time.time()
                 result = solver.solve(
                     self.project, target_function, function_args, structs
                 )
@@ -162,6 +162,12 @@ class AngrAnalyzer:
             except Exception as e:
                 logger.error(
                     f"Error during analysis with solver '{solver.vulnerability_type}': {str(e)}"
+                )
+                end_time = time.time()
+                logger.info(
+                    "Solver '%s' failed after %.2f seconds.",
+                    solver.vulnerability_type,
+                    end_time - start_time,
                 )
                 master_result["messages"].append(
                     f"Error in {solver.vulnerability_type} solver: {str(e)}"

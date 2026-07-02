@@ -8,6 +8,7 @@ from itertools import chain
 from typing import List, Dict, Any
 import logging
 from ...utils.config_loader import get_base_memory_solver_config
+from ...utils.config_loader import get_memory_layout_config
 
 logger = logging.getLogger(__name__)
 
@@ -165,8 +166,6 @@ class BaseMemorySolver(BaseSolver):
         state,
         project,
         function_args,
-        *,
-        base_offset: int = 0x80,  # because of redzone
         buffer_padding: int = 0x0,
     ):
         """
@@ -175,10 +174,20 @@ class BaseMemorySolver(BaseSolver):
         """
         symbolic_args = []
         buffer_infos = []
-        current_offset = base_offset
         regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
         has_pointer = False
         max_size = 0
+
+        cfg = get_memory_layout_config()
+        arg_start = cfg["arg_start"]
+        current_offset = 0
+        # safety net of zeros to the memory region starting from arg_start to prevent angr from reading uninitialized memory
+        safety_net = 0x4000
+        state.memory.store(
+            arg_start,
+            claripy.BVV(0, safety_net * 8),
+            endness=project.arch.memory_endness,
+        )
 
         if function_args:
             logger.info(
@@ -210,9 +219,8 @@ class BaseMemorySolver(BaseSolver):
 
                             pad = buffer_padding
                             current_offset += size + pad
-                            buffer_addr = rsp - current_offset
-                            if pad:
-                                current_offset += pad
+                            buffer_addr = arg_start - current_offset
+                            current_offset += pad
 
                             logger.debug(
                                 "Storing symbolic argument %d at address: 0x%x",

@@ -20,8 +20,9 @@ _DEFAULTS: Dict[str, Any] = {
                 "symbolic_stdin_bytes": 512,
             },
         },
-        "heap": {
-            "heap_start": 0x600000,
+        "memory_layout": {
+            "heap_start": 0x2000000,
+            "arg_start": 0x3000000,
         },
     },
     "analyzer": {
@@ -148,11 +149,12 @@ def get_base_memory_solver_config() -> Dict[str, Any]:
     return _build_config(("solver", "base_memory"), specs)
 
 
-def get_heap_hook_config() -> Dict[str, Any]:
+def get_memory_layout_config() -> Dict[str, Any]:
     specs = [
         ("heap_start", ("heap_start",), _coerce_positive_int),
+        ("arg_start", ("arg_start",), _coerce_positive_int),
     ]
-    return _build_config(("solver", "heap"), specs)
+    return _build_config(("solver", "memory_layout"), specs)
 
 
 def get_analyzer_config() -> Dict[str, Any]:

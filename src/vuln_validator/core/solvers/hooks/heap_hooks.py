@@ -1,11 +1,11 @@
 import angr
 import claripy
 import logging
-from ....utils.config_loader import get_heap_hook_config
+from ....utils.config_loader import get_memory_layout_config
 
 logger = logging.getLogger(__name__)
 
-_HEAP_CFG = get_heap_hook_config()
+_HEAP_CFG = get_memory_layout_config()
 _HEAP_START_VALUE = _HEAP_CFG["heap_start"]
 FALLBACK_SIZE = 256
 FALLBACK_ALIGNMENT = 16

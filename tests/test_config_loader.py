@@ -22,13 +22,14 @@ def test_config_loader_defaults_when_missing(monkeypatch, tmp_path):
     _set_fake_config_root(monkeypatch, tmp_path)
 
     base_cfg = config_loader.get_base_memory_solver_config()
-    heap_cfg = config_loader.get_heap_hook_config()
+    heap_cfg = config_loader.get_memory_layout_config()
     analyzer_cfg = config_loader.get_analyzer_config()
 
     assert base_cfg["max_steps"] == 500
     assert base_cfg["step_size"] == 1
     assert base_cfg["symbolic_stdin_bytes"] == 512
-    assert heap_cfg["heap_start"] == 0x600000
+    assert heap_cfg["heap_start"] == 0x2000000
+    assert heap_cfg["arg_start"] == 0x3000000
     assert analyzer_cfg["auto_stop_on_first_found"] is False
     assert analyzer_cfg["specific_stop_on_first_found"] is True
     assert analyzer_cfg["specific_continue_on_no_find"] is True
@@ -46,8 +47,9 @@ def test_config_loader_overrides(monkeypatch, tmp_path):
         [solver.base_memory.input]
         symbolic_stdin_bytes = 64
 
-        [solver.heap]
-        heap_start = 0x700000
+        [solver.memory_layout]
+        heap_start = 0x2000000
+        arg_start = 0x3000000
 
         [analyzer]
         auto_stop_on_first_found = true
@@ -57,13 +59,14 @@ def test_config_loader_overrides(monkeypatch, tmp_path):
     )
 
     base_cfg = config_loader.get_base_memory_solver_config()
-    heap_cfg = config_loader.get_heap_hook_config()
+    heap_cfg = config_loader.get_memory_layout_config()
     analyzer_cfg = config_loader.get_analyzer_config()
 
     assert base_cfg["max_steps"] == 123
     assert base_cfg["step_size"] == 2
     assert base_cfg["symbolic_stdin_bytes"] == 64
-    assert heap_cfg["heap_start"] == 0x700000
+    assert heap_cfg["heap_start"] == 0x2000000
+    assert heap_cfg["arg_start"] == 0x3000000
     assert analyzer_cfg["auto_stop_on_first_found"] is True
     assert analyzer_cfg["specific_stop_on_first_found"] is False
     assert analyzer_cfg["specific_continue_on_no_find"] is False
@@ -81,8 +84,9 @@ def test_config_loader_invalid_values_fallback(monkeypatch, tmp_path):
         [solver.base_memory.input]
         symbolic_stdin_bytes = 0
 
-        [solver.heap]
+        [solver.memory_layout]
         heap_start = "nope"
+        arg_start = "nope"
 
         [analyzer]
         auto_stop_on_first_found = "no"
@@ -92,13 +96,14 @@ def test_config_loader_invalid_values_fallback(monkeypatch, tmp_path):
     )
 
     base_cfg = config_loader.get_base_memory_solver_config()
-    heap_cfg = config_loader.get_heap_hook_config()
+    heap_cfg = config_loader.get_memory_layout_config()
     analyzer_cfg = config_loader.get_analyzer_config()
 
     assert base_cfg["max_steps"] == 500
     assert base_cfg["step_size"] == 1
     assert base_cfg["symbolic_stdin_bytes"] == 512
-    assert heap_cfg["heap_start"] == 0x600000
+    assert heap_cfg["heap_start"] == 0x2000000
+    assert heap_cfg["arg_start"] == 0x3000000
     assert analyzer_cfg["auto_stop_on_first_found"] is False
     assert analyzer_cfg["specific_stop_on_first_found"] is True
     assert analyzer_cfg["specific_continue_on_no_find"] is True

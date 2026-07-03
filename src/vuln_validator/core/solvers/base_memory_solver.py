@@ -234,6 +234,8 @@ class BaseMemorySolver(BaseSolver):
                             )
 
                             self._write_to_register(regs, state, i, buffer_addr)
+                        elif arg_type == "variable":
+                            self._write_to_register(regs, state, i, var)
                 else:
                     self._write_to_register(regs, state, i, arg)
 

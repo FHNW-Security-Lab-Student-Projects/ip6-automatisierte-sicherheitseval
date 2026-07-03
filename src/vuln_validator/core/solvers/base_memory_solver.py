@@ -69,14 +69,16 @@ class BaseMemorySolver(BaseSolver):
         solver_cfg = get_base_memory_solver_config()
         symbolic_stdin_bytes = solver_cfg["symbolic_stdin_bytes"]
 
-        # 3. Initial State Setup
-        symbolic_stdin = claripy.BVS("my_input", symbolic_stdin_bytes * 8)
-        state = project.factory.call_state(addr, stdin=symbolic_stdin)
+        symbolic_content = claripy.BVS("my_input", symbolic_stdin_bytes * 8)
+
+        stdin_file = angr.SimFile("stdin", content=symbolic_content)
+        state = project.factory.call_state(addr, stdin=stdin_file)
         logger.info(
             "Initial state created for function '%s' at address 0x%x",
             target_function,
             addr,
         )
+        symbolic_stdin = state.posix.stdin.load(0, symbolic_stdin_bytes)
 
         old_rsp = state.solver.eval(state.regs.rsp)
         logger.debug("Initial RSP: 0x%x", old_rsp)

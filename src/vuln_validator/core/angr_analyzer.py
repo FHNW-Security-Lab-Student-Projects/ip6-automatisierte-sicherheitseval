@@ -29,16 +29,19 @@ class AngrAnalyzer:
             raise FileNotFoundError(f"Provided path '{path}' does not exist.")
 
         if path.suffix in [".c", ".cpp"]:
-            binary_candidate = path.with_suffix("")
-            if binary_candidate.exists():
-                logger.debug(
-                    f"Resolved source file '{path}' to binary '{binary_candidate}'."
-                )
-                return str(binary_candidate)
+            if path.with_suffix("").exists():
+                binary_candidate = path.with_suffix("")
+            elif path.with_suffix(".out").exists():
+                binary_candidate = path.with_suffix(".out")
             else:
                 warning_msg = f"Source file '{path}' provided but corresponding binary '{binary_candidate}' not found."
                 logger.warning(warning_msg)
                 raise FileNotFoundError(warning_msg)
+
+            logger.debug(
+                f"Resolved source file '{path}' to binary '{binary_candidate}'."
+            )
+            return str(binary_candidate)
 
         return str(path)
 

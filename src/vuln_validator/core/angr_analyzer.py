@@ -34,7 +34,9 @@ class AngrAnalyzer:
             elif path.with_suffix(".out").exists():
                 binary_candidate = path.with_suffix(".out")
             else:
-                warning_msg = f"Source file '{path}' provided but corresponding binary '{binary_candidate}' not found."
+                warning_msg = (
+                    f"Source file '{path}' provided but no corresponding binary found."
+                )
                 logger.warning(warning_msg)
                 raise FileNotFoundError(warning_msg)
 

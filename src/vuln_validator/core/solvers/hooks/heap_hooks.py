@@ -116,19 +116,19 @@ class BaseFakeHeapAlloc(angr.SimProcedure):
                 }
             )
 
+            logger.debug(
+                "%s: Placed %s canary at 0x%x",
+                self.__class__.__name__,
+                kind,
+                concrete_addr,
+            )
+
         self.state.globals["allocations"].append(
             {
                 "addr": concrete_ret_addr,
                 "size": concrete_size,
                 "source": f"{self.__class__.__name__}_hook",
             }
-        )
-
-        logger.debug(
-            "%s: Placed %s canary at 0x%x",
-            self.__class__.__name__,
-            kind,
-            concrete_addr,
         )
 
         # 6. Initialize Memory

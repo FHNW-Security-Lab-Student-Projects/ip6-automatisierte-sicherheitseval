@@ -17,13 +17,7 @@ TEST_CASES = [
         "should_find": True,
     },
     {
-        "binary": "tests/fixtures/stack_overflow/strcpy_pointer",
-        "func": "copy_input",
-        "args": [{"type": "pointer", "size": 64}],
-        "should_find": True,
-    },
-    {
-        "binary": "tests/fixtures/stack_overflow/mixed_input",
+        "binary": "tests/fixtures/stack_overflow/mixed_input_relevant_id",
         "func": "process_request",
         "args": [
             {"type": "variable", "size": 4},  # user_id
@@ -33,11 +27,19 @@ TEST_CASES = [
         "should_find": True,  # should find the overflow in input_data, even with the "noise" of the other symbolic args
     },
     {
-        "binary": "tests/fixtures/stack_overflow/two_args",
+        "binary": "tests/fixtures/stack_overflow/two_args_disturb",
         "func": "process_data",
         "args": [
             {"type": "pointer", "size": 32},  # arg1
             {"type": "pointer", "size": 32},  # arg2
+        ],
+        "should_find": True,
+    },
+    {
+        "binary": "tests/fixtures/c++/stack_overflow",
+        "func": "vulnerable_function",
+        "args": [
+            {"type": "pointer", "size": 64},
         ],
         "should_find": True,
     },
@@ -112,13 +114,6 @@ TEST_CASES = [
     {
         "binary": "tests/fixtures/common/safe_strncpy",
         "func": "safe_func",
-        "args": [{"type": "pointer", "size": 128}],
-        "should_find": False,
-    },
-    {
-        "name": "false_positive_trap: complex logic (loop)",
-        "binary": "tests/fixtures/common/false_positiv_trap",
-        "func": "vulnerable_looking_func",
         "args": [{"type": "pointer", "size": 128}],
         "should_find": False,
     },

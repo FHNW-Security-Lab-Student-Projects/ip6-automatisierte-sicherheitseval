@@ -86,6 +86,10 @@ class BaseFakeHeapAlloc(angr.SimProcedure):
 
         ret_addr = claripy.BVV(concrete_ret_addr, 64)
 
+        # Store allocated memory as BVV to ensure it's concrete and not symbolic
+        var = claripy.BVV(0, concrete_size * 8)
+        self.state.memory.store(ret_addr, var, endness=self.state.arch.memory_endness)
+
         # 5. Place Canaries
         # Layout: [Underflow Canary] [User Data] [Overflow Canary]
         canary_addr_underflow = ret_addr - self.CANARY_SIZE

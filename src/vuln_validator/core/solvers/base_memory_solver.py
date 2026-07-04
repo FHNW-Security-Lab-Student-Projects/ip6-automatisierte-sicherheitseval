@@ -65,21 +65,39 @@ class BaseMemorySolver(BaseSolver):
                 f"Analysis aborted: Target function '{target_function}' does not exist or has no symbol table entry.",
             )
 
+        # 3. Initial State Creation
         # Load solver config
         solver_cfg = get_base_memory_solver_config()
         symbolic_stdin_bytes = solver_cfg["symbolic_stdin_bytes"]
 
+        # Create symbolic content for stdin and put it into a SimFile
         symbolic_content = claripy.BVS("my_input", symbolic_stdin_bytes * 8)
-
         stdin_file = angr.SimFile("stdin", content=symbolic_content)
-        state = project.factory.call_state(addr, stdin=stdin_file)
-        logger.info(
-            "Initial state created for function '%s' at address 0x%x",
-            target_function,
-            addr,
+
+        # Create a symbolic argc for the entry state
+        sym_argc = claripy.BVS("argc", 32)
+        state = project.factory.entry_state(stdin=stdin_file, argc=sym_argc)
+        logger.debug(
+            "Initial entry state created with symbolic stdin of %d bytes and symbolic argc.",
+            symbolic_stdin_bytes,
         )
+
+        # Create a simulation manager to explore the binary and find the target function. Reason: so global mallocs are initialized
+        simgr = project.factory.simulation_manager(state)
+        simgr.explore(find=addr, num_find=1)
+
+        # If the target function is found, use the found state; otherwise, create a new call state for the target function (backup in case target function is not reachable from entry)
+        if len(simgr.found) > 0:
+            state = simgr.found[0]
+        else:
+            state = project.factory.call_state(addr, stdin=stdin_file)
+            logger.warning(
+                "Target function '%s' not reachable from entry. Created a new call state for the function. Globals may not be initialized properly.",
+                target_function,
+            )
         symbolic_stdin = state.posix.stdin.load(0, symbolic_stdin_bytes)
 
+        # Old RSP value for stack-based struct address calculations
         old_rsp = state.solver.eval(state.regs.rsp)
         logger.debug("Initial RSP: 0x%x", old_rsp)
 
@@ -114,7 +132,7 @@ class BaseMemorySolver(BaseSolver):
             max_steps,
             step_size,
         )
-
+        max_simngr_active = 0
         while len(simgr.active) > 0 and step_count < max_steps:
             if len(simgr.unconstrained) > 0 or len(simgr.errored) > 0:
                 logger.info(
@@ -126,6 +144,8 @@ class BaseMemorySolver(BaseSolver):
                 break
             simgr.step(n=step_size)
             step_count += step_size
+            max_simngr_active = max(max_simngr_active, len(simgr.active))
+        logger.info("simgr active states: %d", max_simngr_active)
 
         if len(simgr.errored) > 0:
             logger.warning(

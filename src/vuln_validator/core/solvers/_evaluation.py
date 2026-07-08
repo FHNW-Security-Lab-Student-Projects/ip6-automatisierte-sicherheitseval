@@ -168,6 +168,19 @@ def evaluate_results(
                         )
                         continue
 
+    for state in chain(simgr.active, simgr.deadended, simgr.unconstrained):
+        if state.globals.get("fmt_vulnerable", False):
+            vuln_data = _get_cause(state, symbolic_args, symbolic_stdin)
+            vuln_data["state_type"] = state.globals.get(
+                "fmt_vuln_type", "format_string_write"
+            )
+            vuln_data["description"] = state.globals.get(
+                "fmt_vuln_desc", "Format String vulnerability verified by hook."
+            )
+            evidence_list.append(vuln_data)
+            found_vuln = True
+            break
+
     if found_vuln:
         msg = f"{vulnerability_type.replace('_', ' ').title()} confirmed in '{target_function}'."
     else:

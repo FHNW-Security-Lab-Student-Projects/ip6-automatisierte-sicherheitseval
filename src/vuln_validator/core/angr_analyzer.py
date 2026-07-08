@@ -6,6 +6,7 @@ from typing import Dict, Any, List
 from .solvers.base_solver import BaseSolver
 from .solvers.stack_solver import StackOverflowSolver
 from .solvers.heap_solver import HeapOverflowSolver
+from .solvers.format_string_solver import FormatStringSolver
 from ..utils.config_loader import get_analyzer_config
 
 logger = logging.getLogger(__name__)
@@ -58,7 +59,11 @@ class AngrAnalyzer:
 
     def _get_registered_solvers(self) -> List[BaseSolver]:
         """Registrers all available solvers centrally."""
-        solvers: List[BaseSolver] = [StackOverflowSolver(), HeapOverflowSolver()]
+        solvers: List[BaseSolver] = [
+            StackOverflowSolver(),
+            HeapOverflowSolver(),
+            FormatStringSolver(),
+        ]
         return solvers
 
     def _build_execution_plan(self, vuln_type: str) -> List[BaseSolver]:

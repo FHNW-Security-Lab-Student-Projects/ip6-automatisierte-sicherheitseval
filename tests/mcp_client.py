@@ -48,7 +48,6 @@ async def run_analysis_cli(
 
             arguments = {
                 "target_path": str(Path(binary_path).resolve()),
-                "vulnerability_type": "stack_overflow",
             }
             if target_function:
                 arguments["target_function"] = target_function

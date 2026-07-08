@@ -184,6 +184,8 @@ def test_run_analysis_collects_solver_error_and_continues(monkeypatch) -> None:
     ]
     analyzer = _analyzer_with_solvers(monkeypatch, solvers)
 
+    _set_config(monkeypatch)
+
     result = analyzer.run_analysis("auto")
 
     assert calls == ["stack_overflow", "heap_overflow"]
@@ -229,6 +231,7 @@ def _set_config(monkeypatch, **overrides):
         "auto_stop_on_first_found": False,
         "specific_stop_on_first_found": True,
         "specific_continue_on_no_find": True,
+        "continue_on_error": True,
     }
     cfg.update(overrides)
     monkeypatch.setattr(

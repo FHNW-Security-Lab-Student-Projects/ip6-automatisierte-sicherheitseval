@@ -16,7 +16,7 @@ class HeapOverflowSolver(BaseMemorySolver):
     def _setup_environment(self, project):
         """
         Hooks memory allocation functions (malloc, calloc, etc.).
-        Tries symbol table first, then falls back to PLT.
+        Tries to hook via symbol table.
         """
         # Mapping of function names to their corresponding hook classes
         hooks_to_install = {

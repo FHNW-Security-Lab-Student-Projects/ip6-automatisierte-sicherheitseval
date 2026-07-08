@@ -77,7 +77,7 @@ class BaseMemorySolver(BaseSolver):
         # Create a symbolic argc for the entry state
         sym_argc = claripy.BVS("argc", 32)
         state = project.factory.entry_state(stdin=stdin_file, argc=sym_argc)
-        logger.debug(
+        logger.info(
             "Initial entry state created with symbolic stdin of %d bytes and symbolic argc.",
             symbolic_stdin_bytes,
         )
@@ -89,6 +89,10 @@ class BaseMemorySolver(BaseSolver):
         # If the target function is found, use the found state; otherwise, create a new call state for the target function (backup in case target function is not reachable from entry)
         if len(simgr.found) > 0:
             state = simgr.found[0]
+            logger.info(
+                "Target function '%s' found during exploration. Using the found state.",
+                target_function,
+            )
         else:
             state = project.factory.call_state(addr, stdin=stdin_file)
             logger.warning(

@@ -41,7 +41,7 @@ class FormatStringHook(angr.SimProcedure):
         if self.state.solver.symbolic(fmt_data):
             self._mark_vulnerable(
                 "format_string_content_symbolic",
-                "Content of format string is symbolic (user-controlled). This allows reading (leak) and writing (%n).",
+                "Content of format string is symbolic (user-controlled). Controllable format string content allows information leak (%x/%s) and targeted write access (%n) if stack arguments are manipulable.",
             )
 
         return 0

@@ -71,6 +71,7 @@ def evaluate_results(
     1. Symbolic RIP in unconstrained states (indicates control flow hijack)
     2. Canary integrity (indicates overflow)
     3. Intra-struct corruption (if struct definitions are provided)
+    4. Format String vulnerability (via state.globals flags set by FormatStringHook)
     """
     found_vuln = False
     evidence_list = []

@@ -29,6 +29,7 @@ _DEFAULTS: Dict[str, Any] = {
         "auto_stop_on_first_found": False,
         "specific_stop_on_first_found": True,
         "specific_continue_on_no_find": True,
+        "continue_on_error": False,
     },
     "logging": {
         "log_level": "INFO",
@@ -170,6 +171,7 @@ def get_analyzer_config() -> Dict[str, Any]:
             ("specific_continue_on_no_find",),
             _coerce_bool,
         ),
+        ("continue_on_error", ("continue_on_error",), _coerce_bool),
     ]
     return _build_config(("analyzer",), specs)
 

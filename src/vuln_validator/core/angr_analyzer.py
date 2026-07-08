@@ -109,6 +109,7 @@ class AngrAnalyzer:
         auto_stop_on_first_found = analyzer_cfg["auto_stop_on_first_found"]
         specific_stop_on_first_found = analyzer_cfg["specific_stop_on_first_found"]
         specific_continue_on_no_find = analyzer_cfg["specific_continue_on_no_find"]
+        continue_on_error = analyzer_cfg["continue_on_error"]
 
         is_auto_mode = vuln_type == "auto" or not any(
             s.vulnerability_type == vuln_type for s in execution_plan
@@ -182,5 +183,10 @@ class AngrAnalyzer:
                 master_result["messages"].append(
                     f"Error in {solver.vulnerability_type} solver: {str(e)}"
                 )
+                if not continue_on_error:
+                    logger.info(
+                        "Halting further analysis due to error and configuration settings."
+                    )
+                    break
 
         return master_result

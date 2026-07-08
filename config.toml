@@ -26,6 +26,9 @@ specific_stop_on_first_found = true
 # Specific vulnerability type: continue when no vulnerability found
 specific_continue_on_no_find = false
 
+# stop when Solver throws error
+continue_on_error = false
+
 [logging]
 # Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 log_level = "INFO"

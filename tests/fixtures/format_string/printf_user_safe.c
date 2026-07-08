@@ -4,7 +4,7 @@
 
 
 void log_message(char *user_msg) {
-    printf(user_msg);
+    printf("%s", user_msg);
 }
 
 int main() {

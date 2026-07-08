@@ -4,23 +4,27 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class FormatStringPrintfHook(angr.SimProcedure):
+class FormatStringHook(angr.SimProcedure):
     """
     SimProcedure Hook for (printf, fprintf, etc.).
     Detects if the format string is symbolic (user-controlled).
     """
 
-    def run(self):
-        # x86_64 Calling Convention:
-        # 1. Arg (Format-String) is in RDI
-        fmt_addr = self.state.regs.rdi
+    def __init__(self, fmt_arg_index=0):
+        """
+        Args: Index of the format string argument.
+        """
+        super().__init__()
+        self.fmt_arg_index = fmt_arg_index
 
-        # Check 1 if the format string address is symbolic
+    def run(self):
+        regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
+
+        fmt_reg_name = regs[self.fmt_arg_index]
+        fmt_addr = getattr(self.state.regs, fmt_reg_name)
+
         if self.state.solver.symbolic(fmt_addr):
-            self._mark_vulnerable(
-                "format_string_pointer_symbolic",
-                "Adress of format string is symbolic (user-controlled).",
-            )
+            # Do nothing, because Overflow-Solvers will handle this case.
             return 0
 
         # Check 2 if the format string content is symbolic

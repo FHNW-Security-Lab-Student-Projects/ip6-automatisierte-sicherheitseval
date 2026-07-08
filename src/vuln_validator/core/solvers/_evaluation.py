@@ -168,6 +168,7 @@ def evaluate_results(
                         )
                         continue
 
+    # Check 4: Format String Vulnerability Detection via Hooks
     for state in chain(simgr.active, simgr.deadended, simgr.unconstrained):
         if state.globals.get("fmt_vulnerable", False):
             vuln_data = _get_cause(state, symbolic_args, symbolic_stdin)

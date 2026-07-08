@@ -1,5 +1,5 @@
 from .base_memory_solver import BaseMemorySolver
-from .hooks.format_string_hooks import FormatStringPrintfHook
+from .hooks.format_string_hooks import FormatStringHook
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,18 +16,27 @@ class FormatStringSolver(BaseMemorySolver):
         Hooks printf and similar functions to detect format string attacks.
         """
         hooks_to_install = {
-            "printf": FormatStringPrintfHook,
-            "fprintf": FormatStringPrintfHook,
-            "sprintf": FormatStringPrintfHook,
-            "syslog": FormatStringPrintfHook,
-            "snprintf": FormatStringPrintfHook,
+            "printf": FormatStringHook,
+            "fprintf": FormatStringHook,
+            "sprintf": FormatStringHook,
+            "syslog": FormatStringHook,
+            "snprintf": FormatStringHook,
+        }
+        hooks_to_install = {
+            "printf": (0),  # 1. Arg (rdi)
+            "fprintf": (1),  # 2. Arg (rsi)
+            "sprintf": (1),  # 2. Arg (rsi)
+            "snprintf": (2),  # 3. Arg (rdx)
+            "syslog": (1),  # 2. Arg (rsi)
         }
 
-        for func_name, hook_class in hooks_to_install.items():
+        for func_name, arg_index in hooks_to_install.items():
             # Try to hook via PLT first
             sym = project.loader.find_symbol(func_name)
             if sym is not None:
-                project.hook_symbol(func_name, hook_class())
+                project.hook_symbol(
+                    func_name, FormatStringHook(fmt_arg_index=arg_index)
+                )
                 logger.debug(f"Hooked {func_name} for Format-String analysis.")
             else:
                 logger.debug(

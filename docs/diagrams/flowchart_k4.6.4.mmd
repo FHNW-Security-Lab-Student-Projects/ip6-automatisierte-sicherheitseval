@@ -1,0 +1,13 @@
+flowchart TD
+    Start[("Hook: printf/fprintf/etc.")] --> CheckAddr{"Ist Adresse<br/>symbolisch?"}
+    
+    CheckAddr -- Ja --> Ignore["Ignorieren<br/>(Overflow-Solver zuständig)"]
+    Ignore --> ReturnSafe[Return 0]
+    
+    CheckAddr -- Nein --> LoadContent[Lade Inhalt]
+    LoadContent --> CheckContent{Ist Inhalt<br/>symbolisch?}
+    
+    CheckContent -- Nein --> ReturnSafe
+    CheckContent -- Ja --> SetFlag["Setze state.globals<br/>fmt_vulnerable = True"]
+    SetFlag --> LogWarn[Log: Vulnerability Detected]
+    LogWarn --> ReturnSafe

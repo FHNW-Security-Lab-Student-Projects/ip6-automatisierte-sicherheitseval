@@ -17,6 +17,12 @@ TEST_CASES = [
         "should_find": True,
     },
     {
+        "binary": "tests/fixtures/stack_overflow/scanf",
+        "func": "vulnerable_login",
+        "args": None,
+        "should_find": True,
+    },
+    {
         "binary": "tests/fixtures/stack_overflow/mixed_input_relevant_id",
         "func": "process_request",
         "args": [

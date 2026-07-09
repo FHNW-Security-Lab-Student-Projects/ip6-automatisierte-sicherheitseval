@@ -5,25 +5,25 @@ from typing import List, Dict, Any
 logger = logging.getLogger(__name__)
 
 
-def _format_input_bytes(data: bytes, max_preview: int = 1024) -> str:
+def _format_input_bytes(
+    data: bytes, max_preview: int = 1024, as_value: bool = False
+) -> str:
     if not data:
         return ""
 
     if all(b == 0 for b in data):
         return f"<all-zero len={len(data)}>"
 
-    # Show only a compact preview, but preserve length info
+    if as_value:
+        return f"{int.from_bytes(data, byteorder='little'):0{len(data) * 2}x}"
+
     preview = data[:max_preview].hex()
     if len(data) > max_preview:
         return f"{preview}... <len={len(data)}>"
     return preview
 
 
-def _get_cause(
-    state,
-    symbolic_args: List[Any],
-    symbolic_stdin: Any,
-) -> Dict[str, Any]:  # state_type is either "errored" or "unconstrained"
+def _get_cause(state, symbolic_args: List[Any], symbolic_stdin: Any) -> Dict[str, Any]:
     details = {
         "input_hex": {},
         "stdin_used": False,
@@ -34,12 +34,7 @@ def _get_cause(
             val = state.solver.eval(sym_arg, cast_to=bytes)
             details["input_hex"][f"arg_{idx}"] = _format_input_bytes(val)
         except Exception as e:
-            logger.warning(
-                "Failed to extract arg %d from %s state: %s",
-                idx,
-                state,
-                e,
-            )
+            logger.warning("Failed to extract arg %d from %s state: %s", idx, state, e)
             details["input_hex"][f"arg_{idx}"] = "Extraction failed"
 
     try:
@@ -56,8 +51,8 @@ def _get_cause(
             try:
                 val = state.solver.eval(scanf_input["symbol"], cast_to=bytes)
                 var_name = scanf_input["var_name"]
-                details["input_hex"]["scanf_inputs"][f"{var_name}"] = (
-                    _format_input_bytes(val),
+                details["input_hex"]["scanf_inputs"][var_name] = _format_input_bytes(
+                    val, as_value=True
                 )
             except Exception as e:
                 logger.warning(
@@ -68,7 +63,6 @@ def _get_cause(
                 )
                 details["input_hex"]["scanf_inputs"] = "Extraction failed"
 
-    # logger.debug("Extracted details for %s state: %s", state, details)
     return details
 
 

@@ -96,7 +96,9 @@ class BaseMemorySolver(BaseSolver):
 
         # If the target function is found, use the found state; otherwise, create a new call state for the target function (backup in case target function is not reachable from entry)
         if len(simgr.found) > 0:
-            state = simgr.found[0]
+            state = project.factory.call_state(
+                addr, stdin=stdin_file, base_state=simgr.found[0]
+            )
             logger.info(
                 "Target function '%s' found during exploration. Using the found state.",
                 target_function,

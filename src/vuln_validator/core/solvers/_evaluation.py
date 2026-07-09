@@ -50,6 +50,24 @@ def _get_cause(
         logger.warning("Failed to extract stdin from %s state: %s", state, e)
         details["input_hex"]["stdin"] = "Extraction failed"
 
+    if state.globals.get("scanf_inputs"):
+        details["input_hex"]["scanf_inputs"] = {}
+        for scanf_input in state.globals["scanf_inputs"]:
+            try:
+                val = state.solver.eval(scanf_input["symbol"], cast_to=bytes)
+                var_name = scanf_input["var_name"]
+                details["input_hex"]["scanf_inputs"][f"{var_name}"] = (
+                    _format_input_bytes(val),
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to extract scanf input at 0x%x from %s state: %s",
+                    scanf_input["addr"],
+                    state,
+                    e,
+                )
+                details["input_hex"]["scanf_inputs"] = "Extraction failed"
+
     # logger.debug("Extracted details for %s state: %s", state, details)
     return details
 

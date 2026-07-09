@@ -9,6 +9,7 @@ from typing import List, Dict, Any
 import logging
 from ...utils.config_loader import get_base_memory_solver_config
 from ...utils.config_loader import get_memory_layout_config
+from .hooks.scanf_hooks import ScanfHook
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,12 @@ class BaseMemorySolver(BaseSolver):
     Base class for memory-related vulnerability solvers.
     Provides common utilities for handling symbolic pointers and memory state.
     """
+
+    def _install_generic_input_hooks(self, project):
+        for sym_name in ("scanf", "__isoc99_scanf", "__isoc99_scanf_chk"):
+            if project.loader.find_symbol(sym_name) is not None:
+                project.hook_symbol(sym_name, ScanfHook())
+                logger.debug("Hooked scanf to avoid symbolic parsing errors.")
 
     def solve(
         self,
@@ -39,6 +46,7 @@ class BaseMemorySolver(BaseSolver):
 
         # 1. Environment Setup
         self._setup_environment(project)
+        self._install_generic_input_hooks(project)
 
         # 2. Function Address Resolution
         try:
@@ -149,7 +157,7 @@ class BaseMemorySolver(BaseSolver):
             simgr.step(n=step_size)
             step_count += step_size
             max_simngr_active = max(max_simngr_active, len(simgr.active))
-        logger.info("simgr active states: %d", max_simngr_active)
+        logger.info("simgr max active states: %d", max_simngr_active)
 
         if len(simgr.errored) > 0:
             logger.warning(

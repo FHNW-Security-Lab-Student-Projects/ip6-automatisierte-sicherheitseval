@@ -1,13 +1,27 @@
 import json
 from pathlib import Path
-
+import copy
 import anyio
 
 # anyio is a Python library that provides a unified API for asynchronous programming, allowing you to write code that can run on different asynchronous frameworks (like asyncio, trio, etc.) without modification. In this test file, anyio is used to run asynchronous functions that interact with the MCP server.
 
+from vuln_validator.utils import config_loader
 from vuln_validator.mcp_server import mcp
 
 FIXTURE_BINARY = Path("tests/fixtures/stack_overflow/gets_local")
+
+
+def _set_config(monkeypatch, **analyzer_overrides):
+    """
+    Overrides the analyzer configuration for testing purposes. It allows tests to specify custom configuration values for the analyzer, ensuring that the AngrAnalyzer behaves as expected under different configuration scenarios.
+    """
+    cfg = copy.deepcopy(config_loader._DEFAULTS)
+    cfg["analyzer"].update(analyzer_overrides)
+    monkeypatch.setattr(
+        config_loader,
+        "load_config",
+        lambda *args, **kwargs: copy.deepcopy(cfg),
+    )
 
 
 def test_mcp_registration_exposes_expected_tool_and_prompt() -> None:
@@ -27,11 +41,13 @@ def test_mcp_registration_exposes_expected_tool_and_prompt() -> None:
     assert "vulnerability_type" in tools[0].inputSchema["properties"]
 
 
-def test_validate_vulnerability_tool_end_to_end() -> None:
+def test_validate_vulnerability_tool_end_to_end(monkeypatch) -> None:
     """
     This test performs an end-to-end validation of the `validate_vulnerability` tool by running it against a known vulnerable binary and checking the results.
     """
     assert FIXTURE_BINARY.exists(), f"Missing fixture binary: {FIXTURE_BINARY}"
+
+    _set_config(monkeypatch)
 
     async def _call_tool():
         return await mcp.call_tool(

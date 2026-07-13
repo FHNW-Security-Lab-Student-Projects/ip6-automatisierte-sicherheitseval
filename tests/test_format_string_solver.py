@@ -1,8 +1,6 @@
 import pytest
 import angr
-import copy
 
-from vuln_validator.utils import config_loader
 from vuln_validator.core.solvers.format_string_solver import FormatStringSolver
 
 TEST_CASES = [
@@ -70,19 +68,6 @@ TEST_CASES = [
 ]
 
 
-def _set_config(monkeypatch, **analyzer_overrides):
-    """
-    Overrides the analyzer configuration for testing purposes. It allows tests to specify custom configuration values for the analyzer, ensuring that the AngrAnalyzer behaves as expected under different configuration scenarios.
-    """
-    cfg = copy.deepcopy(config_loader._DEFAULTS)
-    cfg["analyzer"].update(analyzer_overrides)
-    monkeypatch.setattr(
-        config_loader,
-        "load_config",
-        lambda *args, **kwargs: copy.deepcopy(cfg),
-    )
-
-
 class TestFormatStringSolver:
 
     @pytest.fixture
@@ -98,13 +83,13 @@ class TestFormatStringSolver:
         )
 
     @pytest.mark.parametrize("case", TEST_CASES)
-    def test_format_string_patterns(self, monkeypatch, case):
+    def test_format_string_patterns(self, set_config, case):
         proj = angr.Project(case["binary"], auto_load_libs=False)
         if not proj.kb.functions:
             proj.analyses.CFGFast()
 
         solver = FormatStringSolver()
-        _set_config(monkeypatch)
+        set_config()
         result = solver.solve(
             proj,
             target_function=case["func"],

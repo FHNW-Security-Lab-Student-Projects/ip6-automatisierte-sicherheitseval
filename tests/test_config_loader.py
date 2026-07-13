@@ -26,6 +26,7 @@ def test_config_loader_defaults_when_missing(monkeypatch, tmp_path):
     """
     Test that the configuration loader returns default values when the config file is missing.
     """
+    _set_fake_config_root(monkeypatch, tmp_path)
 
     # no config.toml written on purpose
     cfg = config_loader.get_config()

@@ -163,6 +163,7 @@ class BaseMemorySolver(BaseSolver):
             max_simngr_active = max(max_simngr_active, len(simgr.active))
         logger.info("simgr max active states: %d", max_simngr_active)
 
+        msg = None
         if step_count >= max_steps:
             logger.warning(
                 "Reached maximum simulation steps (%d) without finding unconstrained or errored states.",

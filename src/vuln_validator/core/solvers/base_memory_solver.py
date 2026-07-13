@@ -7,8 +7,7 @@ import claripy
 from itertools import chain
 from typing import List, Dict, Any
 import logging
-from ...utils.config_loader import get_base_memory_solver_config
-from ...utils.config_loader import get_memory_layout_config
+from ...utils.config_loader import get_config
 from .hooks.scanf_hooks import ScanfHook
 
 logger = logging.getLogger(__name__)
@@ -75,8 +74,10 @@ class BaseMemorySolver(BaseSolver):
 
         # 3. Initial State Creation
         # Load solver config
-        solver_cfg = get_base_memory_solver_config()
-        symbolic_stdin_bytes = solver_cfg["symbolic_stdin_bytes"]
+        cfg = get_config()
+        symbolic_stdin_bytes = cfg["solver"]["base_memory"]["input"][
+            "symbolic_stdin_bytes"
+        ]
 
         # Create symbolic content for stdin and put it into a SimFile
         symbolic_content = claripy.BVS("my_input", symbolic_stdin_bytes * 8)
@@ -139,8 +140,9 @@ class BaseMemorySolver(BaseSolver):
         # 5. Simulation Loop
         simgr = project.factory.simulation_manager(state)
         step_count = 0
-        max_steps = solver_cfg["max_steps"]
-        step_size = solver_cfg["step_size"]
+        simulation_cfg = get_config()["solver"]["base_memory"]["simulation"]
+        max_steps = simulation_cfg["max_steps"]
+        step_size = simulation_cfg["step_size"]
         logger.debug(
             "Config: max_steps=%d, step_size=%d",
             max_steps,
@@ -214,8 +216,8 @@ class BaseMemorySolver(BaseSolver):
         has_pointer = False
         max_size = 0
 
-        cfg = get_memory_layout_config()
-        arg_start = cfg["arg_start"]
+        cfg = get_config()
+        arg_start = cfg["solver"]["memory_layout"]["arg_start"]
         current_offset = 0
         # safety net of zeros to the memory region starting from arg_start to prevent angr from reading uninitialized memory
         safety_net = 0x4000

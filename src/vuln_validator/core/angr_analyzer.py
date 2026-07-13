@@ -7,7 +7,7 @@ from .solvers.base_solver import BaseSolver
 from .solvers.stack_solver import StackOverflowSolver
 from .solvers.heap_solver import HeapOverflowSolver
 from .solvers.format_string_solver import FormatStringSolver
-from ..utils.config_loader import get_analyzer_config
+from ..utils.config_loader import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +105,7 @@ class AngrAnalyzer:
 
         execution_plan = self._build_execution_plan(vuln_type)
 
-        analyzer_cfg = get_analyzer_config()
+        analyzer_cfg = get_config()["analyzer"]
         auto_stop_on_first_found = analyzer_cfg["auto_stop_on_first_found"]
         specific_stop_on_first_found = analyzer_cfg["specific_stop_on_first_found"]
         specific_continue_on_no_find = analyzer_cfg["specific_continue_on_no_find"]

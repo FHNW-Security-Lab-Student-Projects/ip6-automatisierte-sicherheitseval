@@ -1,5 +1,5 @@
 import logging
-from .config_loader import get_log_level_config
+from .config_loader import get_config
 
 
 class _ShortLoggerNameFilter(logging.Filter):
@@ -19,7 +19,7 @@ def setup_logging() -> None:
     app_handler.setFormatter(formatter)
     app_handler.addFilter(short_name_filter)
 
-    log_cfg = get_log_level_config()
+    log_cfg = get_config()["logging"]
     log_level = log_cfg["log_level"]
 
     app_logger = logging.getLogger("vuln_validator")

@@ -163,6 +163,13 @@ class BaseMemorySolver(BaseSolver):
             max_simngr_active = max(max_simngr_active, len(simgr.active))
         logger.info("simgr max active states: %d", max_simngr_active)
 
+        if step_count >= max_steps:
+            logger.warning(
+                "Reached maximum simulation steps (%d) without finding unconstrained or errored states.",
+                max_steps,
+            )
+            msg = f"Reached maximum simulation steps ({max_steps}) with active states remaining and no unconstrained or errored states found. The analysis may be incomplete. Consider increasing the max_steps in the config."
+
         if len(simgr.errored) > 0:
             logger.warning(
                 "Ignoring %d errored states (not inspectable here).",
@@ -187,6 +194,7 @@ class BaseMemorySolver(BaseSolver):
             target_function,
             structs,
             struct_addresses,
+            msg,
             self.vulnerability_type,
             self._build_result,
         )

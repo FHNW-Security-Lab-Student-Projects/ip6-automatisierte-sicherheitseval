@@ -74,6 +74,7 @@ def evaluate_results(
     target_function: str,
     structs: List[Dict[str, Any]],
     struct_addresses: List[int],
+    message: str,
     vulnerability_type: str,
     build_result,
 ):
@@ -199,5 +200,7 @@ def evaluate_results(
         msg = f"{vulnerability_type.replace('_', ' ').title()} confirmed in '{target_function}'."
     else:
         msg = f"No {vulnerability_type.replace('_', ' ').title()} found in '{target_function}'."
+        if message:
+            msg += f" Additional info: {message}"
 
     return build_result(found_vuln, target_function, evidence_list, msg)

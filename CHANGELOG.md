@@ -1,3 +1,85 @@
+## [0.6.0] - 2026-07-14
+
+### 🚀 Features
+
+- Add log_level to config
+- Define vuln_type in cli instead of hardcoded for mcp_client
+- Make address for stored pointer args configurable
+- Accept .out binaries
+- Provide stdin as angr.SimFile for scanf compatibility
+- Use entry_state to initialize global variabels
+- First working draft of FormatStringSolver
+- FormatStringHooks also for fprintf, sprintf, etc.
+- Add config variable for stopping ananlysis if solver throws error
+- Add scanf-hook
+- Add warning when simulation not completed (active states remaining)
+- Add LocalLoopSeer to prevent path explosion when loops
+
+### 🐛 Bug Fixes
+
+- Handle if stack_solver but heap struct defined (no hooks)
+- Also show stdin if symbolic_args exist (don't repot all-zeros
+- Check if found_vuln is true at correct places
+- Get solver time also when it fails
+- Write variable in register
+- Not associated variable binary_candidate removed
+- Heap addr completely dynamic
+- Update config in tests
+- Call_state on found state from simgr.explore but with base_state
+- Initialize var msg
+
+### 💼 Other
+
+- Remove duplicate _set_config in tests
+
+### 🚜 Refactor
+
+- Check if struct addr already found before looping trough states
+- All heap-hooks consistent
+- Remove unused fallback logic for hooks since binaries are not stripped
+- Show scanf output as little endian
+- Return config in one methode
+
+### 📚 Documentation
+
+- Add diagrams
+- Add flowchart
+- Adjust mcp-client command in Readme
+- Add diagrams for documentation
+- Add examples for request and response
+- Update Readme (compilation only Linux)
+- Add diagram for FormatStringHooks
+
+### ⚡ Performance
+
+- Use only relevant tests
+
+### 🧪 Testing
+
+- Make test independent of config settings
+- Extend config_loader tests
+- Add tests for FormatStringSolver
+- Update heap_overflow tests
+- Add scnaf to tests
+- All tests are now independent of config.toml
+
+### ⚙️ Miscellaneous Tasks
+
+- Edit default log_level
+- Add comment in dwarf_analyzer
+- Update prompt (clarify files might be in cwd)
+- Remove duplicate code
+- Add missing docstrings, add more comments and cleanup code
+- Add example binaries with global variabels
+- Put log at correct position
+- Add binaries for format_string
+- Remove hardcoded vuln_type in mcp-client
+- Edit docstring in HeapoverflowSolver
+- Update comments and docstring
+- Add all binaries for format_string
+- Add docstrings to config_loader.py
+- Add scanf test binary
+- *(merge)* Merge pull request #7 from FHNW-Security-Lab-Student-Projects/dev
 ## [0.5.0] - 2026-06-03
 
 ### 🚀 Features
@@ -74,6 +156,7 @@
 - Remove unused logs and variabels
 - Add binaries with multiple structs stored in heap
 - *(merge)* Merge pull request #6 from FHNW-Security-Lab-Student-Projects/dev
+- Update changelog
 ## [0.4.0] - 2026-05-13
 
 ### 🚀 Features

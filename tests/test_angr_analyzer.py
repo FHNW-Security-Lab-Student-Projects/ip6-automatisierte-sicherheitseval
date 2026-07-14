@@ -5,6 +5,11 @@ from vuln_validator.core.solvers.base_solver import BaseSolver
 
 
 class DummySolver(BaseSolver):
+    """
+    A dummy solver for testing purposes. It simulates the behavior of a real solver without performing any actual analysis.
+    It can be configured to return a specific result or raise an error, allowing tests to verify the AngrAnalyzer's handling of different solver outcomes.
+    """
+
     def __init__(
         self,
         vuln_type: str,
@@ -24,9 +29,15 @@ class DummySolver(BaseSolver):
 
     @property
     def vulnerability_type(self) -> str:
+        """
+        Returns the vulnerability type that this dummy solver is simulating.
+        """
         return self._vuln_type
 
     def solve(self, project, target_function, function_args, structs) -> Dict[str, Any]:
+        """
+        Simulates the solve method of a real solver. It records the call and either returns a predefined result or raises a predefined error.
+        """
         self._calls.append(self._vuln_type)
         self._received_target = target_function
         self._received_args = function_args
@@ -37,6 +48,9 @@ class DummySolver(BaseSolver):
 
 
 def _analyzer_with_solvers(monkeypatch, solvers: List[BaseSolver]) -> AngrAnalyzer:
+    """
+    Creates an AngrAnalyzer instance with a mocked project and a list of dummy solvers for testing. It bypasses the actual binary loading and solver registration, allowing tests to focus on the analysis workflow and result aggregation without relying on real binaries or solvers.
+    """
     analyzer = AngrAnalyzer("/tmp/fake-binary")
     analyzer.project = (
         object()
@@ -45,7 +59,7 @@ def _analyzer_with_solvers(monkeypatch, solvers: List[BaseSolver]) -> AngrAnalyz
     return analyzer
 
 
-def test_run_analysis_auto_runs_all_solvers(monkeypatch) -> None:
+def test_run_analysis_auto_runs_all_solvers(monkeypatch, set_config) -> None:
     """
     Tests that when 'auto' is specified as the vulnerability type, the AngrAnalyzer runs all registered solvers in the order they are returned by _get_registered_solvers, collects their results, and correctly aggregates the overall vulnerability status and evidence.
     """
@@ -80,6 +94,7 @@ def test_run_analysis_auto_runs_all_solvers(monkeypatch) -> None:
     ]
     analyzer = _analyzer_with_solvers(monkeypatch, solvers)
 
+    set_config()
     result = analyzer.run_analysis("auto", "main")
 
     assert calls == ["stack_overflow", "heap_overflow"]
@@ -95,7 +110,7 @@ def test_run_analysis_auto_runs_all_solvers(monkeypatch) -> None:
 
 
 def test_run_analysis_specific_type_stops_on_first_matching_positive(
-    monkeypatch,
+    monkeypatch, set_config
 ) -> None:
     """
     Tests that if a specific vulnerability type is requested and the first matching solver returns a positive result (vulnerable), the analyzer stops running further solvers in the execution plan, as the requested vulnerability type has already been confirmed, ensuring efficient analysis without unnecessary solver executions.
@@ -117,6 +132,7 @@ def test_run_analysis_specific_type_stops_on_first_matching_positive(
     ]
     analyzer = _analyzer_with_solvers(monkeypatch, solvers)
 
+    set_config()
     result = analyzer.run_analysis("heap_overflow")
 
     assert result["requested_type"] == "heap_overflow"
@@ -126,10 +142,11 @@ def test_run_analysis_specific_type_stops_on_first_matching_positive(
 
 
 def test_run_analysis_specific_type_continues_when_first_matching_negative(
-    monkeypatch,
+    monkeypatch, set_config
 ) -> None:
     """
-    Tests that if a specific vulnerability type is requested and the first matching solver returns a negative result (not vulnerable), the analyzer continues to run the remaining solvers in the execution plan to ensure comprehensive analysis, rather than stopping after the first match.
+    Tests that if a specific vulnerability type is requested and the first matching solver
+    returns a negative result, the analyzer doesn't continue to run remaining solvers.
     """
     calls: List[str] = []
     solvers = [
@@ -157,21 +174,21 @@ def test_run_analysis_specific_type_continues_when_first_matching_negative(
     ]
     analyzer = _analyzer_with_solvers(monkeypatch, solvers)
 
+    set_config()
     result = analyzer.run_analysis("heap_overflow")
 
-    assert calls == ["heap_overflow", "stack_overflow", "format_string"]
-    assert result["is_vulnerable"] is True
-    assert result["evidence"][0]["state_type"] == "Errored"
+    assert calls == ["heap_overflow"]
+    assert result["is_vulnerable"] is False
     assert result["analyzed_types"] == [
         "heap_overflow",
-        "stack_overflow",
-        "format_string",
     ]
 
 
-def test_run_analysis_collects_solver_error_and_continues(monkeypatch) -> None:
+def test_run_analysis_collects_solver_error_and_continues(
+    monkeypatch, set_config
+) -> None:
     """
-    Tests that if a solver raises an unexpected exception during its solve method, the analyzer catches the error, records it in the messages, and continues running the remaining solvers instead of crashing or halting the analysis.
+    Tests that if a solver raises an unexpected exception during its solve method, the analyzer catches the error, records it in the messages list, and stops running further solvers, provides feedback about the error encountered.
     """
     calls: List[str] = []
     solvers = [
@@ -180,15 +197,15 @@ def test_run_analysis_collects_solver_error_and_continues(monkeypatch) -> None:
     ]
     analyzer = _analyzer_with_solvers(monkeypatch, solvers)
 
+    set_config()
     result = analyzer.run_analysis("auto")
 
-    assert calls == ["stack_overflow", "heap_overflow"]
-    assert result["is_vulnerable"] is False
-    assert result["analyzed_types"] == ["stack_overflow", "heap_overflow"]
+    assert calls == ["stack_overflow"]
+    assert result["analyzed_types"] == ["stack_overflow"]
     assert "boom" in result["messages"][0]
 
 
-def test_run_analysis_unknown_type_falls_back_to_auto(monkeypatch) -> None:
+def test_run_analysis_unknown_type_falls_back_to_auto(monkeypatch, set_config) -> None:
     """
     Tests that if an unknown vulnerability type is requested, the analyzer falls back to running all registered solvers (auto behavior) instead of failing or returning no results.
     """
@@ -199,6 +216,7 @@ def test_run_analysis_unknown_type_falls_back_to_auto(monkeypatch) -> None:
     ]
     analyzer = _analyzer_with_solvers(monkeypatch, solvers)
 
+    set_config()
     result = analyzer.run_analysis("totally_unknown_type")
 
     assert result["requested_type"] == "totally_unknown_type"
@@ -220,21 +238,8 @@ def test_run_analysis_passes_target_function_to_solver(monkeypatch) -> None:
     assert calls == ["stack_overflow"]
 
 
-def _set_config(monkeypatch, **overrides):
-    cfg = {
-        "auto_stop_on_first_found": False,
-        "specific_stop_on_first_found": True,
-        "specific_continue_on_no_find": True,
-    }
-    cfg.update(overrides)
-    monkeypatch.setattr(
-        "vuln_validator.core.angr_analyzer.get_analyzer_config",
-        lambda: cfg,
-    )
-
-
 def test_run_analysis_auto_stops_on_first_positive_when_config_enabled(
-    monkeypatch,
+    monkeypatch, set_config
 ) -> None:
     calls: List[str] = []
     solvers = [
@@ -260,37 +265,10 @@ def test_run_analysis_auto_stops_on_first_positive_when_config_enabled(
         ),
     ]
     analyzer = _analyzer_with_solvers(monkeypatch, solvers)
-    _set_config(monkeypatch, auto_stop_on_first_found=True)
+    set_config(auto_stop_on_first_found=True)
 
     result = analyzer.run_analysis("auto")
 
     assert calls == ["stack_overflow"]
     assert result["analyzed_types"] == ["stack_overflow"]
     assert result["is_vulnerable"] is True
-
-
-def test_run_analysis_specific_type_stops_on_first_negative_when_config_disabled(
-    monkeypatch,
-) -> None:
-    calls: List[str] = []
-    solvers = [
-        DummySolver(
-            "heap_overflow",
-            calls,
-            {
-                "is_vulnerable": False,
-                "type": "heap_overflow",
-                "evidence": [],
-                "message": "No heap.",
-            },
-        ),
-        DummySolver("stack_overflow", calls),
-    ]
-    analyzer = _analyzer_with_solvers(monkeypatch, solvers)
-    _set_config(monkeypatch, specific_continue_on_no_find=False)
-
-    result = analyzer.run_analysis("heap_overflow")
-
-    assert calls == ["heap_overflow"]
-    assert result["analyzed_types"] == ["heap_overflow"]
-    assert result["is_vulnerable"] is False

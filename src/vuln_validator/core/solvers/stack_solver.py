@@ -22,6 +22,9 @@ class StackOverflowSolver(BaseMemorySolver):
         return symbolic_args
 
     def _place_stack_canaries(self, state, project, buffers, padding_size: int = 0x4):
+        """
+        For each buffer, places canaries both before and after the buffer to detect underflows and overflows.
+        """
         if "canary_list" not in state.globals:
             state.globals["canary_list"] = []
 

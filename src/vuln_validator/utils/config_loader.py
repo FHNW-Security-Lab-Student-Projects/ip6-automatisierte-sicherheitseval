@@ -20,21 +20,31 @@ _DEFAULTS: Dict[str, Any] = {
                 "symbolic_stdin_bytes": 512,
             },
         },
-        "heap": {
-            "heap_start": 0x600000,
+        "memory_layout": {
+            "heap_start": 0x2000000,
+            "arg_start": 0x3000000,
         },
     },
     "analyzer": {
         "auto_stop_on_first_found": False,
         "specific_stop_on_first_found": True,
-        "specific_continue_on_no_find": True,
+        "specific_continue_on_no_find": False,
+        "continue_on_error": False,
+    },
+    "logging": {
+        "log_level": "INFO",
     },
 }
 
 _CONFIG_CACHE: Optional[Dict[str, Any]] = None
+VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 
 
 def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Recursively merges two dictionaries. Values from the override dictionary take precedence.
+    If both values are dictionaries, they are merged recursively.
+    """
     for k, v in override.items():
         if isinstance(v, dict) and isinstance(base.get(k), dict):
             base[k] = _deep_merge(base[k], v)
@@ -44,6 +54,9 @@ def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any
 
 
 def _coerce_positive_int(value: Any, default: int, name: str) -> int:
+    """
+    Coerces a value to a positive integer. If the value is invalid or non-positive, returns the default.
+    """
     try:
         value_int = int(value)
         if value_int <= 0:
@@ -57,13 +70,33 @@ def _coerce_positive_int(value: Any, default: int, name: str) -> int:
 
 
 def _coerce_bool(value: Any, default: bool, name: str) -> bool:
+    """
+    Coerces a value to a boolean. If the value is not a boolean, returns the default.
+    """
     if isinstance(value, bool):
         return value
     logger.warning("Invalid %s=%r in config. Using default %s.", name, value, default)
     return default
 
 
+def _coerce_log_level(value: Any, default: str, name: str) -> str:
+    """
+    Coerces a value to a valid log level string. If the value is invalid, returns the default.
+    """
+    if value is None:
+        return default
+    level = str(value).upper()
+    if level in VALID_LOG_LEVELS:
+        return level
+    logger.warning("Invalid %s=%r in config. Using default %s.", name, value, default)
+    return default
+
+
 def _get_nested(d: Dict[str, Any], path: tuple[str, ...], default: Any) -> Any:
+    """
+    Retrieves a nested value from a dictionary using a tuple of keys as the path.
+    If the path does not exist, returns the default value.
+    """
     cur: Any = d
     for key in path:
         if not isinstance(cur, dict) or key not in cur:
@@ -72,11 +105,25 @@ def _get_nested(d: Dict[str, Any], path: tuple[str, ...], default: Any) -> Any:
     return cur
 
 
+def _default(path: tuple[str, ...]) -> Any:
+    """
+    Returns a default value from _DEFAULTS for the given nested path.
+    """
+    return _get_nested(_DEFAULTS, path, None)
+
+
 def _config_path() -> Path:
+    """
+    Returns the path to the configuration file.
+    """
     return Path(__file__).resolve().parents[3] / "config.toml"
 
 
 def load_config() -> Dict[str, Any]:
+    """
+    Loads the configuration from the config.toml file, merging it with default values.
+    Caches the result to avoid repeated file reads.
+    """
     global _CONFIG_CACHE
     if _CONFIG_CACHE is not None:
         return _CONFIG_CACHE
@@ -103,56 +150,89 @@ def load_config() -> Dict[str, Any]:
     return _CONFIG_CACHE
 
 
-def _build_config(
-    root_path: tuple[str, ...], specs: list[tuple[str, tuple[str, ...], Any]]
-) -> Dict[str, Any]:
-    cfg = load_config()
-    defaults = _get_nested(_DEFAULTS, root_path, {})
-    section = _get_nested(cfg, root_path, {})
-
-    result: Dict[str, Any] = {}
-    name_prefix = ".".join(root_path)
-    for out_key, path, coerce in specs:
-        default_val = _get_nested(defaults, path, None)
-        value = _get_nested(section, path, default_val)
-        name = f"{name_prefix}." + ".".join(path)
-        result[out_key] = coerce(value, default_val, name)
-
-    return result
+def _int_cfg(raw: Dict[str, Any], path: tuple[str, ...], name: str) -> int:
+    default = _default(path)
+    value = _get_nested(raw, path, default)
+    return _coerce_positive_int(value, default, name)
 
 
-def get_base_memory_solver_config() -> Dict[str, Any]:
-    specs = [
-        ("max_steps", ("simulation", "max_steps"), _coerce_positive_int),
-        ("step_size", ("simulation", "step_size"), _coerce_positive_int),
-        (
-            "symbolic_stdin_bytes",
-            ("input", "symbolic_stdin_bytes"),
-            _coerce_positive_int,
-        ),
-    ]
-    return _build_config(("solver", "base_memory"), specs)
+def _bool_cfg(raw: Dict[str, Any], path: tuple[str, ...], name: str) -> bool:
+    default = _default(path)
+    value = _get_nested(raw, path, default)
+    return _coerce_bool(value, default, name)
 
 
-def get_heap_hook_config() -> Dict[str, Any]:
-    specs = [
-        ("heap_start", ("heap_start",), _coerce_positive_int),
-    ]
-    return _build_config(("solver", "heap"), specs)
+def _log_level_cfg(raw: Dict[str, Any], path: tuple[str, ...], name: str) -> str:
+    default = _default(path)
+    value = _get_nested(raw, path, default)
+    return _coerce_log_level(value, default, name)
 
 
-def get_analyzer_config() -> Dict[str, Any]:
-    specs = [
-        ("auto_stop_on_first_found", ("auto_stop_on_first_found",), _coerce_bool),
-        (
-            "specific_stop_on_first_found",
-            ("specific_stop_on_first_found",),
-            _coerce_bool,
-        ),
-        (
-            "specific_continue_on_no_find",
-            ("specific_continue_on_no_find",),
-            _coerce_bool,
-        ),
-    ]
-    return _build_config(("analyzer",), specs)
+def get_config() -> Dict[str, Any]:
+    raw = load_config()
+    return {
+        "solver": {
+            "base_memory": {
+                "simulation": {
+                    "max_steps": _int_cfg(
+                        raw,
+                        ("solver", "base_memory", "simulation", "max_steps"),
+                        "solver.base_memory.simulation.max_steps",
+                    ),
+                    "step_size": _int_cfg(
+                        raw,
+                        ("solver", "base_memory", "simulation", "step_size"),
+                        "solver.base_memory.simulation.step_size",
+                    ),
+                },
+                "input": {
+                    "symbolic_stdin_bytes": _int_cfg(
+                        raw,
+                        ("solver", "base_memory", "input", "symbolic_stdin_bytes"),
+                        "solver.base_memory.input.symbolic_stdin_bytes",
+                    ),
+                },
+            },
+            "memory_layout": {
+                "heap_start": _int_cfg(
+                    raw,
+                    ("solver", "memory_layout", "heap_start"),
+                    "solver.memory_layout.heap_start",
+                ),
+                "arg_start": _int_cfg(
+                    raw,
+                    ("solver", "memory_layout", "arg_start"),
+                    "solver.memory_layout.arg_start",
+                ),
+            },
+        },
+        "analyzer": {
+            "auto_stop_on_first_found": _bool_cfg(
+                raw,
+                ("analyzer", "auto_stop_on_first_found"),
+                "analyzer.auto_stop_on_first_found",
+            ),
+            "specific_stop_on_first_found": _bool_cfg(
+                raw,
+                ("analyzer", "specific_stop_on_first_found"),
+                "analyzer.specific_stop_on_first_found",
+            ),
+            "specific_continue_on_no_find": _bool_cfg(
+                raw,
+                ("analyzer", "specific_continue_on_no_find"),
+                "analyzer.specific_continue_on_no_find",
+            ),
+            "continue_on_error": _bool_cfg(
+                raw,
+                ("analyzer", "continue_on_error"),
+                "analyzer.continue_on_error",
+            ),
+        },
+        "logging": {
+            "log_level": _log_level_cfg(
+                raw,
+                ("logging", "log_level"),
+                "logging.log_level",
+            )
+        },
+    }

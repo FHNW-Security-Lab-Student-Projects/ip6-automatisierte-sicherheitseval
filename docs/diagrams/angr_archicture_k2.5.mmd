@@ -1,0 +1,38 @@
+flowchart LR
+    subgraph Input ["Eingabe"]
+        Binary[("Binärdatei")]
+    end
+
+    subgraph AngrCore ["angr Framework"]
+        Project["<b>Project</b><br/>Lädt Binary, CFG, Architecture"]
+        KB[("<b>Knowledge Base</b><br/>SimProcedures (printf, malloc...)")]
+        
+        subgraph StateEngine ["Zustands-Engine"]
+            SimState["<b>SimState</b><br/>Registers, Memory, Path Constraints"]
+            Claripy["<b>Claripy</b><br/>ASTs, Symbolic Logic"]
+            Solver[("SMT Solver (Z3)<br/>Concrete Values")]
+        end
+
+        SimMgr["<b>SimulationManager</b><br/>Stashes: active, found, deadended"]
+    end
+
+    subgraph Output ["Ausgabe"]
+        Solution["Konkreter Input<br/>(Proof of Concept)"]
+    end
+
+    Binary --> Project
+    Project --> KB
+    Project --> SimState
+    KB -.->|Hooks| SimState
+    SimState <-->|Constraints / ASTs| Claripy
+    Claripy <-->|Query / Solve| Solver
+    SimState --> SimMgr
+    SimMgr -->|Clone / Step| SimState
+    SimMgr -->|Found State| Solution
+
+    style Project fill:#e1f5fe,stroke:#01579b
+    style KB fill:#fff9c4,stroke:#fbc02d
+    style SimState fill:#e8f5e9,stroke:#2e7d32
+    style Claripy fill:#e8f5e9,stroke:#2e7d32
+    style SimMgr fill:#f3e5f5,stroke:#7b1fa2
+    style Solution fill:#ffebee,stroke:#c62828,stroke-width:2px

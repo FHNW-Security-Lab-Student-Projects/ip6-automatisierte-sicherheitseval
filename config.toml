@@ -9,9 +9,12 @@ step_size = 1
 # Size of symbolic stdin (bytes)
 symbolic_stdin_bytes = 512
 
-[solver.heap]
+[solver.memory_layout]
 # Start address for fake heap
-heap_start = 0x600000
+heap_start = 0x3000000
+
+# Start address for symbolic argument data
+arg_start = 0xc0000000
 
 [analyzer]
 # Auto mode: stop after first vulnerability found
@@ -21,4 +24,11 @@ auto_stop_on_first_found = false
 specific_stop_on_first_found = true
 
 # Specific vulnerability type: continue when no vulnerability found
-specific_continue_on_no_find = true
+specific_continue_on_no_find = false
+
+# stop when Solver throws error
+continue_on_error = false
+
+[logging]
+# Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+log_level = "INFO"

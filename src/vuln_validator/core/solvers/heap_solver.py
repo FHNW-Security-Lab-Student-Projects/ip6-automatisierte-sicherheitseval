@@ -16,7 +16,7 @@ class HeapOverflowSolver(BaseMemorySolver):
     def _setup_environment(self, project):
         """
         Hooks memory allocation functions (malloc, calloc, etc.).
-        Tries symbol table first, then falls back to PLT.
+        Tries to hook via symbol table.
         """
         # Mapping of function names to their corresponding hook classes
         hooks_to_install = {
@@ -28,24 +28,13 @@ class HeapOverflowSolver(BaseMemorySolver):
         }
 
         for func_name, hook_class in hooks_to_install.items():
-            installed = False
 
-            # Try 1: Hook via symbol table
+            # Try to hook via symbol table
             sym = project.loader.find_symbol(func_name)
             if sym is not None:
                 project.hook_symbol(func_name, hook_class())
-                installed = True
                 logger.debug(f"Hooked {func_name} via symbol table.")
-
-            # Try 2: Hook via PLT
-            if not installed:
-                plt_addr = project.loader.main_object.plt.get(func_name)
-                if plt_addr is not None:
-                    project.hook(plt_addr, hook_class())
-                    installed = True
-                    logger.debug(f"Hooked {func_name} via PLT at 0x{plt_addr:x}.")
-
-            if not installed:
+            else:
                 logger.debug(
                     f"Could not find {func_name} (symbol or PLT). Hook skipped."
                 )

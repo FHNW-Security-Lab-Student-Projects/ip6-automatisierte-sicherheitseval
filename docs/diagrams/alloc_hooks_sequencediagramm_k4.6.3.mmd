@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant B as Binary (Zielprogramm)
+    participant H as Hook (MyFakeMalloc)
+    participant S as Simulierter Heap
+
+    B->>H: Ruft malloc(size) auf
+    Note over H: Hook fängt Aufruf ab<br/>(libc wird umgangen)
+    
+    H->>H: Berechne Layout<br/>(Canary + Buffer + Canary)
+    H->>S: Reserviere deterministischen Block
+    S-->>H: Gib Basisadresse zurück
+    
+    H-->>B: Gibt Adresse (Pointer) zurück
+    
+    Note right of S: Speicher ist nun:<br/>[Canary][Buffer][Canary]

@@ -1,12 +1,14 @@
 import angr
 import claripy
 import logging
-from ....utils.config_loader import get_heap_hook_config
+from ....utils.config_loader import get_config
 
 logger = logging.getLogger(__name__)
 
-_HEAP_CFG = get_heap_hook_config()
+_HEAP_CFG = get_config()["solver"]["memory_layout"]
 _HEAP_START_VALUE = _HEAP_CFG["heap_start"]
+FALLBACK_SIZE = 256
+FALLBACK_ALIGNMENT = 16
 
 
 class BaseFakeHeapAlloc(angr.SimProcedure):
@@ -37,37 +39,41 @@ class BaseFakeHeapAlloc(angr.SimProcedure):
         return 1
 
     def run(self, *args):
+        logger.warning(
+            f"{self.__class__.__name__} called with args: {args}. Ensure that symbolic arguments are handled appropriately."
+        )
         # 1. Calculate size
         total_size = self._get_allocation_size(*args)
-
         # Fallback for symbolic sizes to ensure concrete address calculation
         if self.state.solver.symbolic(total_size):
             logger.warning(
-                f"{self.__class__.__name__} called with symbolic size. Using fallback 256."
+                f"{self.__class__.__name__} called with symbolic size. Using fallback {FALLBACK_SIZE}."
             )
-            concrete_size = 256
+            concrete_size = FALLBACK_SIZE
         else:
             concrete_size = self.state.solver.eval(total_size)
 
-        # 2. Initialize Globals if needed
+        # 2. Calculate alignment
+        raw_alignment = self._get_alignment(*args)
+        # Fallback for symbolic alignment to ensure concrete address calculation
+        if self.state.solver.symbolic(raw_alignment):
+            logger.warning(
+                f"{self.__class__.__name__} called with symbolic alignment. Using fallback {FALLBACK_ALIGNMENT}."
+            )
+            alignment = FALLBACK_ALIGNMENT
+        else:
+            alignment = self.state.solver.eval(raw_alignment)
+
+        # 3. Initialize Globals if needed
         if "heap_ptr" not in self.state.globals:
             self.state.globals["heap_ptr"] = self.HEAP_START
             self.state.globals["canary_list"] = []
             self.state.globals["allocations"] = []
 
-        # 3. Calculate Addresses with Optional Alignment
-        raw_addr = (
-            self.state.globals["heap_ptr"] + self.CANARY_SIZE
-        )  # Start after underflow canary
+        # 4. Calculate Addresses with Optional Alignment
+        # Start after underflow canary
+        raw_addr = self.state.globals["heap_ptr"] + self.CANARY_SIZE
         concrete_raw = self.state.solver.eval(raw_addr)
-
-        # Check for dynamic alignment (e.g. from aligned_alloc)
-        alignment = self._get_alignment(*args)
-        alignment = (
-            self.state.solver.eval(alignment)
-            if not isinstance(alignment, int)
-            else alignment
-        )
 
         if alignment > 1:
             if concrete_raw % alignment == 0:
@@ -78,16 +84,17 @@ class BaseFakeHeapAlloc(angr.SimProcedure):
         else:
             concrete_ret_addr = concrete_raw
 
-        ret_addr = claripy.BVV(
-            concrete_ret_addr, 64
-        )  # BVV for consistent type handling
+        ret_addr = claripy.BVV(concrete_ret_addr, 64)
 
+        # Store allocated memory as BVV to ensure it's concrete and not symbolic
+        var = claripy.BVV(0, concrete_size * 8)
+        self.state.memory.store(ret_addr, var, endness=self.state.arch.memory_endness)
+
+        # 5. Place Canaries
         # Layout: [Underflow Canary] [User Data] [Overflow Canary]
-        # Underflow Canary is placed immediately before the returned address
         canary_addr_underflow = ret_addr - self.CANARY_SIZE
         canary_addr_overflow = ret_addr + concrete_size
 
-        # 4. Place Canaries
         for addr, kind in (
             (canary_addr_overflow, "overflow"),
             (canary_addr_underflow, "underflow"),
@@ -109,14 +116,6 @@ class BaseFakeHeapAlloc(angr.SimProcedure):
                 }
             )
 
-            self.state.globals["allocations"].append(
-                {
-                    "addr": concrete_ret_addr,
-                    "size": concrete_size,
-                    "source": f"{self.__class__.__name__}_hook",
-                }
-            )
-
             logger.debug(
                 "%s: Placed %s canary at 0x%x",
                 self.__class__.__name__,
@@ -124,10 +123,18 @@ class BaseFakeHeapAlloc(angr.SimProcedure):
                 concrete_addr,
             )
 
-        # 5. Initialize Memory
+        self.state.globals["allocations"].append(
+            {
+                "addr": concrete_ret_addr,
+                "size": concrete_size,
+                "source": f"{self.__class__.__name__}_hook",
+            }
+        )
+
+        # 6. Initialize Memory
         self._initialize_memory(ret_addr, concrete_size)
 
-        # 6. Advance Heap Pointer
+        # 7. Advance Heap Pointer
         self.state.globals["heap_ptr"] = canary_addr_overflow + self.CANARY_SIZE
 
         return ret_addr
@@ -138,9 +145,6 @@ class MyFakeMalloc(BaseFakeHeapAlloc):
 
     def _get_allocation_size(self, *args):
         return args[0] if args else 0
-
-    def _initialize_memory(self, addr, size):
-        pass
 
     def run(self, size):
         return super().run(size)
@@ -153,9 +157,6 @@ class MyFakeCalloc(BaseFakeHeapAlloc):
         if len(args) < 2:
             return 0
         nmemb, size = args[0], args[1]
-        if self.state.solver.symbolic(nmemb) or self.state.solver.symbolic(size):
-            logger.warning("calloc called with symbolic arguments. Using fallback 256.")
-            return 256
         return nmemb * size
 
     def _initialize_memory(self, addr, size):
@@ -177,9 +178,4 @@ class MyFakeAlignedAlloc(BaseFakeHeapAlloc):
         return args[0] if len(args) >= 2 else 1
 
     def run(self, alignment, size):
-        # Handle symbolic alignment/size gracefully before passing to super
-        if self.state.solver.symbolic(alignment) or self.state.solver.symbolic(size):
-            logger.warning("aligned_alloc called with symbolic args. Using fallbacks.")
-            alignment = 16
-
         return super().run(alignment, size)

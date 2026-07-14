@@ -1,0 +1,45 @@
+flowchart TD
+    subgraph Analyzer ["AngrAnalyzer (Orchestrator)"]
+        direction TB
+        A1["1. Binary Loading<br/>(Path Resolution and Project Creation)"]
+        A2["2. Solver Selection<br/>(Stack vs. Heap vs. Auto)"]
+    end
+
+    subgraph SolverEngine ["BaseMemorySolver (Solver Engine)"]
+        direction TB
+        B1["3. Environment Setup<br/>(Abstract: Stack vs. Heap Logic)"]
+        B2["4. Address Resolution<br/>(Symbol Lookup)"]
+        B3["5. State Preparation<br/>(Initial State, Prologue and DWARF)"]
+        B4["6. Place Buffers and Canaries<br/>(Abstract: Stack vs. Heap Logic)"]
+        B5["7. Simulation Manager<br/>(Symbolic Execution Loop)"]
+        B6["8. Canary Collection<br/>(Gather Canary addresses)"]
+    end
+
+    subgraph Evaluation ["_evaluation.py (Evaluation Module)"]
+        E1["9. Vulnerability Checks<br/>(1. Symbolic RIP, <br>2. Canary Hit, <br>3. Intra-Struct)"]
+        E2["Generate PoC Input"]
+    end
+
+    Start([Request: validate_vulnerability]) --> A1
+    A1 --> A2
+    A2 -->|Dispatch| B1
+    
+    B1 --> B2
+    B2 --> B3
+    B3 --> B4
+    B4 --> B5
+    B5 --> B6
+    B6 --> E1
+    
+    E1 -->|Vulnerability Found| E2
+    E2 --> Result[Return JSON Result]
+    E1 -->|No Vulnerability| Result
+
+    style Analyzer fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style SolverEngine fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style Evaluation fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    style Start fill:#f9f,stroke:#333,stroke-width:2px
+    style Result fill:#9f9,stroke:#333,stroke-width:2px
+    
+    style B1 stroke-dasharray: 5 5,stroke:#333
+    style B4 stroke-dasharray: 5 5,stroke:#333

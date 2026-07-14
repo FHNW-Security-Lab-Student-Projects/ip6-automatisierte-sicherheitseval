@@ -6,7 +6,8 @@ from typing import Dict, Any, List
 from .solvers.base_solver import BaseSolver
 from .solvers.stack_solver import StackOverflowSolver
 from .solvers.heap_solver import HeapOverflowSolver
-from ..utils.config_loader import get_analyzer_config
+from .solvers.format_string_solver import FormatStringSolver
+from ..utils.config_loader import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -28,20 +29,22 @@ class AngrAnalyzer:
             logger.error(f"Provided path '{path}' does not exist.")
             raise FileNotFoundError(f"Provided path '{path}' does not exist.")
 
-        if path.suffix in [".c", ".cpp"]:  # TODO Erweitern
-            binary_candidate = path.with_suffix("")
-            if binary_candidate.exists():
-                logger.info(
-                    f"Resolved source file '{path}' to binary '{binary_candidate}'."
-                )
-                return str(binary_candidate)
+        if path.suffix in [".c", ".cpp"]:
+            if path.with_suffix("").exists():
+                binary_candidate = path.with_suffix("")
+            elif path.with_suffix(".out").exists():
+                binary_candidate = path.with_suffix(".out")
             else:
-                logger.warning(
-                    f"Source file '{path}' provided but corresponding binary '{binary_candidate}' not found."
+                warning_msg = (
+                    f"Source file '{path}' provided but no corresponding binary found."
                 )
-                raise FileNotFoundError(
-                    f"Source file '{path}' provided but corresponding binary '{binary_candidate}' not found."
-                )
+                logger.warning(warning_msg)
+                raise FileNotFoundError(warning_msg)
+
+            logger.debug(
+                f"Resolved source file '{path}' to binary '{binary_candidate}'."
+            )
+            return str(binary_candidate)
 
         return str(path)
 
@@ -56,7 +59,11 @@ class AngrAnalyzer:
 
     def _get_registered_solvers(self) -> List[BaseSolver]:
         """Registrers all available solvers centrally."""
-        solvers: List[BaseSolver] = [StackOverflowSolver(), HeapOverflowSolver()]
+        solvers: List[BaseSolver] = [
+            StackOverflowSolver(),
+            HeapOverflowSolver(),
+            FormatStringSolver(),
+        ]
         return solvers
 
     def _build_execution_plan(self, vuln_type: str) -> List[BaseSolver]:
@@ -76,9 +83,9 @@ class AngrAnalyzer:
             return registered_solvers
 
         remaining = [s for s in registered_solvers if s.vulnerability_type != vuln_type]
-        return (
-            matching + remaining
-        )  # run requested type first, then the rest for comprehensive analysis
+
+        # run requested type first, then the rest for comprehensive analysis
+        return matching + remaining
 
     def run_analysis(
         self,
@@ -98,10 +105,11 @@ class AngrAnalyzer:
 
         execution_plan = self._build_execution_plan(vuln_type)
 
-        analyzer_cfg = get_analyzer_config()
+        analyzer_cfg = get_config()["analyzer"]
         auto_stop_on_first_found = analyzer_cfg["auto_stop_on_first_found"]
         specific_stop_on_first_found = analyzer_cfg["specific_stop_on_first_found"]
         specific_continue_on_no_find = analyzer_cfg["specific_continue_on_no_find"]
+        continue_on_error = analyzer_cfg["continue_on_error"]
 
         is_auto_mode = vuln_type == "auto" or not any(
             s.vulnerability_type == vuln_type for s in execution_plan
@@ -118,8 +126,8 @@ class AngrAnalyzer:
 
         for index, solver in enumerate(execution_plan):
             master_result["analyzed_types"].append(solver.vulnerability_type)
+            start_time = time.time()
             try:
-                start_time = time.time()
                 result = solver.solve(
                     self.project, target_function, function_args, structs
                 )
@@ -166,8 +174,19 @@ class AngrAnalyzer:
                 logger.error(
                     f"Error during analysis with solver '{solver.vulnerability_type}': {str(e)}"
                 )
+                end_time = time.time()
+                logger.info(
+                    "Solver '%s' failed after %.2f seconds.",
+                    solver.vulnerability_type,
+                    end_time - start_time,
+                )
                 master_result["messages"].append(
                     f"Error in {solver.vulnerability_type} solver: {str(e)}"
                 )
+                if not continue_on_error:
+                    logger.info(
+                        "Halting further analysis due to error and configuration settings."
+                    )
+                    break
 
         return master_result

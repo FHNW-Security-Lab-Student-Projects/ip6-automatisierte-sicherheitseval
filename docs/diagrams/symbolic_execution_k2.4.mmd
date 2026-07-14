@@ -1,0 +1,31 @@
+flowchart TD
+    Start[("Start: Symbolischer State<br/>x = α")] --> Check{Bedingung:<br/>α > 10?}
+    
+    Check -- "True (α > 10)" --> PathA["Pfad A (True)<br/>Constraint: α > 10"]
+    Check -- "False (α ≤ 10)" --> PathB["Pfad B (False)<br/>Constraint: α ≤ 10"]
+    
+    %% Weiterer Schritt in Pfad A
+    PathA --> Check2{Zweite Bedingung:<br/>α < 5?}
+    Check2 -- "True (α < 5)" --> PathA2["Pfad A1 (True)<br/>Constraints: α > 10 ∧ α < 5"]
+    Check2 -- "False (α ≥ 5)" --> PathA3["Pfad A2 (False)<br/>Constraints: α > 10 ∧ α ≥ 5"]
+
+    %% Weiterer Schritt in Pfad B (einfach gehalten)
+    PathB --> SolverB{SMT Solver}
+
+    %% Solver Prüfungen
+    PathA2 --> SolverA1{SMT Solver}
+    PathA3 --> SolverA2{SMT Solver}
+    
+    %% Ergebnisse
+    SolverA1 -- "Unsatisfiable<br/>(Widerspruch!)" --> DeadA["Pfad unerreichbar<br/>State verworfen"]
+    SolverA2 -- "Satisfiable<br/>z.B. α = 15" --> ResultA["Konkreter Input:<br/>x = 15"]
+    
+    SolverB -- "Satisfiable<br/>z.B. α = 5" --> ResultB["Konkreter Input:<br/>x = 5"]
+
+    style Start fill:#f9f,stroke:#333,stroke-width:2px
+    style PathA fill:#bbf,stroke:#333
+    style PathB fill:#bbf,stroke:#333
+    style PathA2 fill:#ffb,stroke:#333,stroke-dasharray: 5 5
+    style DeadA fill:#fbb,stroke:#c62828,color:#fff
+    style ResultA fill:#bfb,stroke:#333
+    style ResultB fill:#bfb,stroke:#333

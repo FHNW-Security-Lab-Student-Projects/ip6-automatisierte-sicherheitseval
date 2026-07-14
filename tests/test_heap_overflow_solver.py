@@ -11,7 +11,7 @@ TEST_CASES = [
         "should_find": True,
     },
     {
-        "binary": "tests/fixtures/heap_overflow/control_flow_hijack",
+        "binary": "tests/fixtures/heap_overflow/metadata_corruption",
         "func": "vulnerable_function",
         "args": [{"type": "pointer", "size": 64}],
         "should_find": True,
@@ -25,6 +25,12 @@ TEST_CASES = [
     {
         "binary": "tests/fixtures/heap_overflow/aligned_alloc_heap_overflow",
         "func": "main",
+        "args": None,
+        "should_find": True,
+    },
+    {
+        "binary": "tests/fixtures/heap_overflow/global_overflow",
+        "func": "read_input",
         "args": None,
         "should_find": True,
     },
@@ -115,12 +121,13 @@ class TestHeapOverflowSolver:
         )
 
     @pytest.mark.parametrize("case", TEST_CASES)
-    def test_overflow_patterns(self, case):
+    def test_overflow_patterns(self, set_config, case):
         proj = angr.Project(case["binary"], auto_load_libs=False)
         if not proj.kb.functions:
             proj.analyses.CFGFast()
 
         solver = HeapOverflowSolver()
+        set_config()
         result = solver.solve(
             proj,
             target_function=case["func"],

@@ -139,6 +139,8 @@ class BaseMemorySolver(BaseSolver):
 
         # 5. Simulation Loop
         simgr = project.factory.simulation_manager(state)
+        local_loop_seer = angr.exploration_techniques.LocalLoopSeer(bound=10)
+        simgr.use_technique(local_loop_seer)
         step_count = 0
         simulation_cfg = get_config()["solver"]["base_memory"]["simulation"]
         max_steps = simulation_cfg["max_steps"]

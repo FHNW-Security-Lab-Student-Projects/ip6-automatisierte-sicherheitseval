@@ -22,7 +22,7 @@ def validate_vulnerability(
     Validates a vulnerability hypothesis using symbolic execution (angr).
     If 'auto' is selected, the tool automatically detects the vulnerability type
     and runs all relevant solvers. Use this if you are unsure about the specific vulnerability class.
-    Currently available specific vulnerability classes are: "stack_overflow", "heap_overflow", "format_string".
+    Currently available specific vulnerability classes are: "stack_overflow", "heap_overflow", "format_string", "use_after_free".
 
     Args:
         target_path: Full path to the binary/source on the host system.

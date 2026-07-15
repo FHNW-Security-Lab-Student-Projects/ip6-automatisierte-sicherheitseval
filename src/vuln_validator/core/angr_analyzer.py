@@ -7,6 +7,7 @@ from .solvers.base_solver import BaseSolver
 from .solvers.stack_solver import StackOverflowSolver
 from .solvers.heap_solver import HeapOverflowSolver
 from .solvers.format_string_solver import FormatStringSolver
+from .solvers.use_after_free_solver import UseAfterFreeSolver
 from ..utils.config_loader import get_config
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,7 @@ class AngrAnalyzer:
             StackOverflowSolver(),
             HeapOverflowSolver(),
             FormatStringSolver(),
+            UseAfterFreeSolver(),
         ]
         return solvers
 

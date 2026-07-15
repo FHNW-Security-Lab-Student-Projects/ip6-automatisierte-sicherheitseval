@@ -39,9 +39,10 @@ class BaseFakeHeapAlloc(angr.SimProcedure):
         return 1
 
     def run(self, *args):
-        logger.warning(
-            f"{self.__class__.__name__} called with args: {args}. Ensure that symbolic arguments are handled appropriately."
-        )
+        """
+        Handles the allocation logic
+        """
+        logger.debug(f"{self.__class__.__name__} called with args: {args}")
         # 1. Calculate size
         total_size = self._get_allocation_size(*args)
         # Fallback for symbolic sizes to ensure concrete address calculation
@@ -179,3 +180,90 @@ class MyFakeAlignedAlloc(BaseFakeHeapAlloc):
 
     def run(self, alignment, size):
         return super().run(alignment, size)
+
+
+class MyFakeFree(angr.SimProcedure):
+    """
+    Hook for free(ptr).
+    Strategy:
+    1. Identify the chunk in our tracked allocations.
+    2. Overwrite the user-data region with symbolic variables ("poisoning").
+       This ensures that any subsequent read (Use-After-Free) loads symbolic data,
+       which will taint registers/memory and potentially lead to an unconstrained RIP.
+    3. Remove from active allocations and add to freed list.
+    """
+
+    CANARY_SIZE = 0x4
+    CANARY_VALUE = 0xDEADBEEF  # Consistent with Alloc hooks
+
+    def run(self, ptr):
+        logger.info("yeeeeeeeeeeeeeeeeeeeeees")
+        # Handle NULL free (safe no-op)
+        if self.state.solver.eval(ptr) == 0:
+            logger.debug("free(0) called, ignoring.")
+            return
+
+        # Resolve concrete address for lookup.
+        if self.state.solver.symbolic(ptr):
+            logger.warning(
+                "free() called with symbolic pointer. UAF tracking may be inaccurate for this call."
+            )
+            try:
+                concrete_ptr = self.state.solver.eval(ptr)
+            except Exception:
+                return  # Cannot track symbolic free
+        else:
+            concrete_ptr = self.state.solver.eval(ptr)
+
+        logger.debug(f"MyFakeFree: Attempting to free address 0x{concrete_ptr:x}")
+
+        # Initialize globals if missing (safety net)
+        if "allocations" not in self.state.globals:
+            self.state.globals["allocations"] = []
+        if "freed_addresses" not in self.state.globals:
+            self.state.globals["freed_addresses"] = []
+
+        # Find the allocation record
+        target_chunk = None
+        chunk_index = -1
+
+        for i, chunk in enumerate(self.state.globals["allocations"]):
+            if chunk["addr"] == concrete_ptr:
+                target_chunk = chunk
+                chunk_index = i
+                break
+
+        if target_chunk is None:
+            logger.warning(
+                f"MyFakeFree: Address 0x{concrete_ptr:x} not found in active allocations. Double free or invalid free?"
+            )
+            return
+
+        size = target_chunk["size"]
+        logger.info(f"MyFakeFree: Freeing chunk at 0x{concrete_ptr:x} with size {size}")
+
+        # Poison the memory region with symbolic variables to simulate UAF
+        poison_var = claripy.BVS(f"uaf_poison_{concrete_ptr:x}", size * 8)
+
+        # Store the symbolic poison into the memory region
+        self.state.memory.store(
+            concrete_ptr, poison_var, endness=self.state.arch.memory_endness
+        )
+        logger.debug(
+            f"MyFakeFree: Poisoned memory at 0x{concrete_ptr:x} with symbolic data ({size} bytes)"
+        )
+
+        # Remove from active allocations
+        del self.state.globals["allocations"][chunk_index]
+
+        # Add to freed list (for evaluation/verification later)
+        self.state.globals["freed_addresses"].append(
+            {
+                "addr": concrete_ptr,
+                "size": size,
+                "source": target_chunk.get("source", "unknown"),
+                "poisoned": True,
+            }
+        )
+
+        return

@@ -193,11 +193,7 @@ class MyFakeFree(angr.SimProcedure):
     3. Remove from active allocations and add to freed list.
     """
 
-    CANARY_SIZE = 0x4
-    CANARY_VALUE = 0xDEADBEEF  # Consistent with Alloc hooks
-
     def run(self, ptr):
-        logger.info("yeeeeeeeeeeeeeeeeeeeeees")
         # Handle NULL free (safe no-op)
         if self.state.solver.eval(ptr) == 0:
             logger.debug("free(0) called, ignoring.")

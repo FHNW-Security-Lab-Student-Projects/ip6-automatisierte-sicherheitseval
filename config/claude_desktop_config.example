@@ -4,7 +4,7 @@
       "command": "uv",
       "args": [
         "--directory",
-        "C:\\Users\\PATH\\TO\\PROJECT\\ip6-automatisierte-sicherheitseval",
+        "<project_path>",
         "run",
         "python",
         "-m",
@@ -16,7 +16,7 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "C:\\Users\\PATH\\TO\\YOUR\\CODE\\FILES"
+        "<code_files_path>"
       ]
     }
   }

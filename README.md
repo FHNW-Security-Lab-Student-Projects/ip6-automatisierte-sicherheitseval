@@ -109,7 +109,7 @@ When defining inputs for the target function, arguments are classified into thre
 
 Note: If the target function takes no arguments, the argument list is empty.
 
-## Local usage without Claude Desktop
+## Local usage without Claude Desktop (Linux/Mac/WSL)
 You can run the analysis directly via the test client script.
 
 Command Syntax

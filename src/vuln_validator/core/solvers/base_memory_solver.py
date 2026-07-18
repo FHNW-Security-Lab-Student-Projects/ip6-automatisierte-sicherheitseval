@@ -138,11 +138,15 @@ class BaseMemorySolver(BaseSolver):
         )
 
         # 5. Simulation Loop
-        simgr = project.factory.simulation_manager(state)
-        local_loop_seer = angr.exploration_techniques.LocalLoopSeer(bound=10)
-        simgr.use_technique(local_loop_seer)
-        step_count = 0
         simulation_cfg = get_config()["solver"]["base_memory"]["simulation"]
+        simgr = project.factory.simulation_manager(state)
+
+        # Loop bound for LocalLoopSeer to prevent infinite loops during symbolic execution
+        loop_bound = simulation_cfg.get("loop_bound", 10)
+        local_loop_seer = angr.exploration_techniques.LocalLoopSeer(bound=loop_bound)
+        simgr.use_technique(local_loop_seer)
+
+        step_count = 0
         max_steps = simulation_cfg["max_steps"]
         step_size = simulation_cfg["step_size"]
         logger.debug(

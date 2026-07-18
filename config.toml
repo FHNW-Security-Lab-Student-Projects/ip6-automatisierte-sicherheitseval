@@ -5,6 +5,9 @@ max_steps = 500
 # Step size per step()
 step_size = 1
 
+# Loop bound for LocalLoopSeer
+loop_bound = 10
+
 [solver.base_memory.input]
 # Size of symbolic stdin (bytes)
 symbolic_stdin_bytes = 512

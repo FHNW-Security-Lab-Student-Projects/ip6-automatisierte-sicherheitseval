@@ -164,6 +164,7 @@ The framework reads `config.toml` from the repository root. There you can adjust
 | ----- | ------------- |
 | max_steps	| Upper bound on simulation steps to limit exploration time |
 | step_size | Number of steps executed per iteration before checking state status. |
+| loop_bound | Loop bound for LocalLoopSeer to prevent infinite loops during symbolic execution |
 | symbolic_stdin_bytes | Size of the symbolic stdin buffer (if too small may miss bugs, but smaller is faster). |
 | heap_start | Start address for the fake heap (adjust if it collides with mapped regions). |
 | arg_start | Start address for symbolic argument data (adjust if it collides with mapped regions). |

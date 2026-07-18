@@ -227,11 +227,22 @@ class MyFakeFree(angr.SimProcedure):
             if chunk["addr"] == concrete_ptr:
                 target_chunk = chunk
                 chunk_index = i
+                # Remove from active allocations
+                del self.state.globals["allocations"][chunk_index]
                 break
+
+        for chunk in self.state.globals["freed_addresses"]:
+            if chunk["addr"] == concrete_ptr:
+                logger.warning(
+                    f"MyFakeFree: Address 0x{concrete_ptr:x} already freed. Double free detected."
+                )
+                self.state.globals["double_free_detected"] = True
+                target_chunk = chunk
+                # return
 
         if target_chunk is None:
             logger.warning(
-                f"MyFakeFree: Address 0x{concrete_ptr:x} not found in active allocations. Double free or invalid free?"
+                f"MyFakeFree: Address 0x{concrete_ptr:x} not found in active allocations. Invalid free?"
             )
             return
 
@@ -248,9 +259,6 @@ class MyFakeFree(angr.SimProcedure):
         logger.debug(
             f"MyFakeFree: Poisoned memory at 0x{concrete_ptr:x} with symbolic data ({size} bytes)"
         )
-
-        # Remove from active allocations
-        del self.state.globals["allocations"][chunk_index]
 
         # Add to freed list (for evaluation/verification later)
         self.state.globals["freed_addresses"].append(

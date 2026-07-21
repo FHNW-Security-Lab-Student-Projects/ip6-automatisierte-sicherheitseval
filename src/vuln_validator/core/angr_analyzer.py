@@ -13,13 +13,8 @@ from ..utils.config_loader import get_config
 
 logger = logging.getLogger(__name__)
 
-SOLVER_TIMEOUT_SECONDS = 180
-
-
-class SolverTimeoutError(Exception):
-    """Custom exception for solver timeouts."""
-
-    pass
+analyzer_config = get_config()["analyzer"]
+SOLVER_TIMEOUT_SECONDS = analyzer_config["timeout_seconds"]
 
 
 class AngrAnalyzer:

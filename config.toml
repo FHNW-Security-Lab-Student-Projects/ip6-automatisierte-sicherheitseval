@@ -20,6 +20,9 @@ heap_start = 0x3000000
 arg_start = 0xc0000000
 
 [analyzer]
+# Timeout in seconds for whole analysis to stop
+timeout_seconds = 180
+
 # Auto mode: stop after first vulnerability found
 auto_stop_on_first_found = false
 

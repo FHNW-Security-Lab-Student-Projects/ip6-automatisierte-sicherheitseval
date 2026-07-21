@@ -4,7 +4,7 @@
 Vulnerability validation framework for **C and C++** projects. It uses LLMs to detect potential vulnerabilities in source code and verifies them using symbolic execution (`angr`) on compiled Linux binaries. The framework eliminates false positives by providing mathematical proof of exploitability.
 
 ## Requirements
-- **Python 3.13+**
+- **Python 3.12**
 - **[uv](https://github.com/astral-sh/uv)** package manager
 - **Node.js** (required for MCP-Filesystem-Server in **Claude Desktop Chat**, not required for **Claude Code**)
     - Windows: `scoop install nodejs-lts` or Installer from nodejs.org
@@ -63,18 +63,19 @@ g++ ./binary.cpp -o ./binary -O0 -fno-omit-frame-pointer -fno-stack-protector -f
 
 
 ## Claude Desktop integration (Windows)
-To allow Claude to read and analyze your source files, the MCP servers **must** be configured.
+To allow Claude to read and analyze your source files, MCP servers **must** be configured.
 
-**Note:** **Claude Desktop Code** does **not** need the filesystem MCP server, only the `VulnValidator` MCP server.  
-The filesystem server is only required for **Claude Desktop Chat**.
+**Note:** **Claude Desktop Code** does **not** need the `filesystem` MCP server, only the `VulnValidator` MCP server.  
+The `filesystem` MCP server is only required for **Claude Desktop Chat**.
 
 1. Locate config file:
-   - Windows: Press Win + R, enter: %APPDATA%\Claude\claude_desktop_config.json
+   - Windows: Press Win + R, enter: `%APPDATA%\Claude\claude_desktop_config.json` or go in Claude Desktop to `Settings` -> `Developer` -> `Edit Config`
+   - Open `claude_desktop_config.json`
 
-2. Configure servers:
-Copy the `mcpServers` block from `config/claude_desktop_config.example` into your `claude_desktop_config.json`. 
+2. Configure MCP servers:
+   - To add the MCP servers to Claude Desktop: Copy the `mcpServers` block from this repository under `config/claude_desktop_config.example` into your `claude_desktop_config.json`. 
    - Replace <project_path> with the absolute path to this repository.
-   - Replace <code_files_path> with the path to the source code you want Claude to analyze.
+   - Replace <code_files_path> with the path to your source code files you want Claude to analyze.
 
 **Note**: You don't need to define exact path for code files but Claude Code will have access to all files in your provided path
 
@@ -89,25 +90,11 @@ Copy the `mcpServers` block from `config/claude_desktop_config.example` into you
    - Start your analysis request.
 
    **If you use Claude Chat:**
-   - Copy the content of `prompt.md` (from the repository root) and paste it into the chat.
-   - Provide the path to your files and add the following instruction:  
+   - Copy the content of `prompt.md` (from the repository root) and paste it into the chat (it will appear as attachement).
+   - Enter the path to your source code files you want to analyze also into the chat.
+   - Finally add the following instruction also into the chat:  
      `"Use the MCP-Server filesystem to access the files in the provided path."`
    - Start your analysis request.
-
-## How it works
-
-The framework uses an LLM to analyze code, identify the vulnerable function, and estimate buffer sizes for symbolic execution.
-
-### Argument Types
-When defining inputs for the target function, arguments are classified into three types:
-
-| Type	| Description	| Required Property |
-| ----- | ------------- | ----------------- |
-| pointer	| A pointer referencing a memory region to be filled with symbolic data.	| size (bytes) |
-| variable	| A primitive value (integer, char) to be treated as symbolic input.	| size (bits) |
-| concrete	| A fixed, constant value passed directly.	| value |
-
-Note: If the target function takes no arguments, the argument list is empty.
 
 ## Local usage without Claude Desktop (Linux/Mac/WSL)
 You can run the analysis directly via the test client script.
@@ -173,6 +160,21 @@ The framework reads `config.toml` from the repository root. There you can adjust
 | specific_continue_on_no_find | 	In specific mode: Continue checking other types if the requested one is not found. |
 | continue_on_error | Ignore internal solver errors and continue analysis with next solver instead of aborting. |
 | log_level | Log granularity (DEBUG, INFO, WARNING, ERROR, CRITICAL). |
+
+## How it works
+
+The framework uses an LLM to analyze code, identify the vulnerable function, and estimate buffer sizes for symbolic execution.
+
+### Argument Types
+When defining inputs for the target function, arguments are classified into three types:
+
+| Type	| Description	| Required Property |
+| ----- | ------------- | ----------------- |
+| pointer	| A pointer referencing a memory region to be filled with symbolic data.	| size (bytes) |
+| variable	| A primitive value (integer, char) to be treated as symbolic input.	| size (bits) |
+| concrete	| A fixed, constant value passed directly.	| value |
+
+Note: If the target function takes no arguments, the argument list is empty.
 
 ## Developer
 

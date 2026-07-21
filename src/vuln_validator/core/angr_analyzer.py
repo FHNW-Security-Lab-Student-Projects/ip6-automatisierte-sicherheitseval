@@ -1,6 +1,9 @@
 import angr
 import logging
 import time
+import threading
+import signal
+import os
 from pathlib import Path
 from typing import Dict, Any, List
 from .solvers.base_solver import BaseSolver
@@ -11,6 +14,14 @@ from .solvers.use_after_free_solver import UseAfterFreeSolver
 from ..utils.config_loader import get_config
 
 logger = logging.getLogger(__name__)
+
+SOLVER_TIMEOUT_SECONDS = 90
+
+
+class SolverTimeoutError(Exception):
+    """Custom exception for solver timeouts."""
+
+    pass
 
 
 class AngrAnalyzer:
@@ -89,6 +100,79 @@ class AngrAnalyzer:
         # run requested type first, then the rest for comprehensive analysis
         return matching + remaining
 
+    def _run_solver_with_timeout(
+        self, solver: BaseSolver, project, target_function, function_args, structs
+    ) -> Dict[str, Any]:
+        """
+        OS-independent timeout implementation.
+        - Linux/macOS: Uses signal.SIGALRM (precise, interrupts C code).
+        - Windows: Uses threading (graceful, waits until thread blocks, then ignores result).
+        """
+        result_container = {"result": None, "error": None, "done": False}
+        is_posix = os.name == "posix"
+
+        def target():
+            try:
+                res = solver.solve(project, target_function, function_args, structs)
+                result_container["result"] = res
+                result_container["done"] = True
+            except Exception as e:
+                result_container["error"] = e
+                result_container["done"] = True
+
+        if is_posix:
+
+            def timeout_handler(signum, frame):
+                raise SolverTimeoutError(
+                    f"Solver timed out after {SOLVER_TIMEOUT_SECONDS}s"
+                )
+
+            old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(SOLVER_TIMEOUT_SECONDS)
+            try:
+                return solver.solve(project, target_function, function_args, structs)
+            except SolverTimeoutError:
+                logger.warning(
+                    f"Solver '{solver.vulnerability_type}' timed out (Signal)."
+                )
+                return {
+                    "is_vulnerable": False,
+                    "evidence": [],
+                    "message": f"Analysis timed out (limit: {SOLVER_TIMEOUT_SECONDS}s). State explosion detected.",
+                }
+            finally:
+                signal.alarm(0)
+                signal.signal(signal.SIGALRM, old_handler)
+
+        else:
+            thread = threading.Thread(target=target)
+            thread.daemon = True
+            thread.start()
+            thread.join(timeout=SOLVER_TIMEOUT_SECONDS)
+
+            if thread.is_alive():
+                logger.warning(
+                    f"Solver '{solver.vulnerability_type}' timed out (Thread)."
+                )
+                return {
+                    "is_vulnerable": False,
+                    "evidence": [],
+                    "message": f"Analysis timed out (limit: {SOLVER_TIMEOUT_SECONDS}s). State explosion detected.",
+                }
+
+            if result_container["error"]:
+                raise result_container["error"]
+
+            return (
+                result_container["result"]
+                if result_container["result"]
+                else {
+                    "is_vulnerable": False,
+                    "evidence": [],
+                    "message": "No vulnerability found.",
+                }
+            )
+
     def run_analysis(
         self,
         vuln_type: str = "auto",
@@ -130,48 +214,9 @@ class AngrAnalyzer:
             master_result["analyzed_types"].append(solver.vulnerability_type)
             start_time = time.time()
             try:
-                result = solver.solve(
-                    self.project, target_function, function_args, structs
+                result = self._run_solver_with_timeout(
+                    solver, self.project, target_function, function_args, structs
                 )
-                end_time = time.time()
-                logger.info(
-                    f"Solver '{solver.vulnerability_type}' completed in {end_time - start_time:.2f} seconds."
-                )
-
-                if result.get("is_vulnerable"):
-                    master_result["is_vulnerable"] = True
-
-                solver_evidence = result.get("evidence", [])
-                for item in solver_evidence:
-                    item["source_solver"] = solver.vulnerability_type
-                master_result["evidence"].extend(solver_evidence)
-
-                master_result["messages"].append(result.get("message", ""))
-
-                # Stopping logic driven by config
-                if is_auto_mode:
-                    if result.get("is_vulnerable") and auto_stop_on_first_found:
-                        logger.info(
-                            "Stopping analysis after first positive match in auto mode."
-                        )
-                        break
-                else:
-                    if index == 0 and solver.vulnerability_type == vuln_type:
-                        if result.get("is_vulnerable") and specific_stop_on_first_found:
-                            logger.info(
-                                "Stopping analysis after positive match for requested type '%s'.",
-                                vuln_type,
-                            )
-                            break
-                        if (not result.get("is_vulnerable")) and (
-                            not specific_continue_on_no_find
-                        ):
-                            logger.info(
-                                "Stopping analysis after no match for requested type '%s'.",
-                                vuln_type,
-                            )
-                            break
-
             except Exception as e:
                 logger.error(
                     f"Error during analysis with solver '{solver.vulnerability_type}': {str(e)}"
@@ -190,5 +235,47 @@ class AngrAnalyzer:
                         "Halting further analysis due to error and configuration settings."
                     )
                     break
+
+            if "timed out" in result.get("message", ""):
+                master_result["messages"].append(result["message"])
+                break
+            end_time = time.time()
+            logger.info(
+                f"Solver '{solver.vulnerability_type}' completed in {end_time - start_time:.2f} seconds."
+            )
+
+            if result.get("is_vulnerable"):
+                master_result["is_vulnerable"] = True
+
+            solver_evidence = result.get("evidence", [])
+            for item in solver_evidence:
+                item["source_solver"] = solver.vulnerability_type
+            master_result["evidence"].extend(solver_evidence)
+
+            master_result["messages"].append(result.get("message", ""))
+
+            # Stopping logic driven by config
+            if is_auto_mode:
+                if result.get("is_vulnerable") and auto_stop_on_first_found:
+                    logger.info(
+                        "Stopping analysis after first positive match in auto mode."
+                    )
+                    break
+            else:
+                if index == 0 and solver.vulnerability_type == vuln_type:
+                    if result.get("is_vulnerable") and specific_stop_on_first_found:
+                        logger.info(
+                            "Stopping analysis after positive match for requested type '%s'.",
+                            vuln_type,
+                        )
+                        break
+                    if (not result.get("is_vulnerable")) and (
+                        not specific_continue_on_no_find
+                    ):
+                        logger.info(
+                            "Stopping analysis after no match for requested type '%s'.",
+                            vuln_type,
+                        )
+                        break
 
         return master_result

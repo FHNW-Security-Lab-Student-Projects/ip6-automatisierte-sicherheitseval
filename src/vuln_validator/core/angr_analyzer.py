@@ -2,8 +2,6 @@ import angr
 import logging
 import time
 import threading
-import signal
-import os
 from pathlib import Path
 from typing import Dict, Any, List
 from .solvers.base_solver import BaseSolver
@@ -15,7 +13,7 @@ from ..utils.config_loader import get_config
 
 logger = logging.getLogger(__name__)
 
-SOLVER_TIMEOUT_SECONDS = 90
+SOLVER_TIMEOUT_SECONDS = 180
 
 
 class SolverTimeoutError(Exception):
@@ -101,77 +99,74 @@ class AngrAnalyzer:
         return matching + remaining
 
     def _run_solver_with_timeout(
-        self, solver: BaseSolver, project, target_function, function_args, structs
+        self,
+        solver: BaseSolver,
+        project,
+        target_function,
+        function_args,
+        structs,
+        timeout_override: float = None,
     ) -> Dict[str, Any]:
         """
-        OS-independent timeout implementation.
-        - Linux/macOS: Uses signal.SIGALRM (precise, interrupts C code).
-        - Windows: Uses threading (graceful, waits until thread blocks, then ignores result).
+        Starts the solver in a separate thread and enforces a dynamic timeout.
         """
-        result_container = {"result": None, "error": None, "done": False}
-        is_posix = os.name == "posix"
+        effective_timeout = (
+            timeout_override if timeout_override is not None else SOLVER_TIMEOUT_SECONDS
+        )
+
+        if effective_timeout <= 0:
+            return {
+                "is_vulnerable": False,
+                "evidence": [],
+                "message": f"Analysis timed out in {solver.vulnerability_type}-Solver (global limit: {SOLVER_TIMEOUT_SECONDS}s). No time remaining.",
+            }
+
+        stop_event = threading.Event()
+        result_container = {"result": None, "error": None}
 
         def target():
             try:
-                res = solver.solve(project, target_function, function_args, structs)
+                res = solver.solve(
+                    project,
+                    target_function,
+                    function_args,
+                    structs,
+                    stop_event=stop_event,
+                )
                 result_container["result"] = res
-                result_container["done"] = True
             except Exception as e:
                 result_container["error"] = e
-                result_container["done"] = True
 
-        if is_posix:
+        thread = threading.Thread(target=target)
+        thread.daemon = True
+        thread.start()
+        thread.join(timeout=effective_timeout)
 
-            def timeout_handler(signum, frame):
-                raise SolverTimeoutError(
-                    f"Solver timed out after {SOLVER_TIMEOUT_SECONDS}s"
-                )
-
-            old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(SOLVER_TIMEOUT_SECONDS)
-            try:
-                return solver.solve(project, target_function, function_args, structs)
-            except SolverTimeoutError:
-                logger.warning(
-                    f"Solver '{solver.vulnerability_type}' timed out (Signal)."
-                )
-                return {
-                    "is_vulnerable": False,
-                    "evidence": [],
-                    "message": f"Analysis timed out (limit: {SOLVER_TIMEOUT_SECONDS}s). State explosion detected.",
-                }
-            finally:
-                signal.alarm(0)
-                signal.signal(signal.SIGALRM, old_handler)
-
-        else:
-            thread = threading.Thread(target=target)
-            thread.daemon = True
-            thread.start()
-            thread.join(timeout=SOLVER_TIMEOUT_SECONDS)
-
-            if thread.is_alive():
-                logger.warning(
-                    f"Solver '{solver.vulnerability_type}' timed out (Thread)."
-                )
-                return {
-                    "is_vulnerable": False,
-                    "evidence": [],
-                    "message": f"Analysis timed out (limit: {SOLVER_TIMEOUT_SECONDS}s). State explosion detected.",
-                }
-
-            if result_container["error"]:
-                raise result_container["error"]
-
-            return (
-                result_container["result"]
-                if result_container["result"]
-                else {
-                    "is_vulnerable": False,
-                    "evidence": [],
-                    "message": "No vulnerability found.",
-                }
+        if thread.is_alive():
+            logger.warning(
+                f"Solver '{solver.vulnerability_type}' timed out. Signaling stop..."
             )
+            stop_event.set()
+            thread.join(timeout=1.0)
+
+            return {
+                "is_vulnerable": False,
+                "evidence": [],
+                "message": f"Analysis timed out in {solver.vulnerability_type}-Solver (global limit: {SOLVER_TIMEOUT_SECONDS}s). State explosion detected.",
+            }
+
+        if result_container["error"]:
+            raise result_container["error"]
+
+        return (
+            result_container["result"]
+            if result_container["result"]
+            else {
+                "is_vulnerable": False,
+                "evidence": [],
+                "message": "No vulnerability found.",
+            }
+        )
 
     def run_analysis(
         self,
@@ -210,12 +205,28 @@ class AngrAnalyzer:
             "target_function": target_function,
         }
 
+        global_start_time = time.time()
+
         for index, solver in enumerate(execution_plan):
             master_result["analyzed_types"].append(solver.vulnerability_type)
+
             start_time = time.time()
+            elapsed_time = time.time() - global_start_time
+            remaining_time = SOLVER_TIMEOUT_SECONDS - elapsed_time
+
+            if remaining_time <= 0:
+                logger.warning("Global timeout reached. Stopping.")
+                master_result["messages"].append("Global analysis timed out.")
+                break
+
             try:
                 result = self._run_solver_with_timeout(
-                    solver, self.project, target_function, function_args, structs
+                    solver,
+                    self.project,
+                    target_function,
+                    function_args,
+                    structs,
+                    timeout_override=remaining_time,
                 )
             except Exception as e:
                 logger.error(

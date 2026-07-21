@@ -9,7 +9,8 @@
         "python",
         "-m",
         "vuln_validator.mcp_server"
-      ]
+      ],
+      "timeout": 300000
     },
     "filesystem": {
       "command": "npx",

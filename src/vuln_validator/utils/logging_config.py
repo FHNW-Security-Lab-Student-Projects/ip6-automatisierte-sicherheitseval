@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from .config_loader import get_config
 
 
@@ -19,12 +20,20 @@ def setup_logging() -> None:
     app_handler.setFormatter(formatter)
     app_handler.addFilter(short_name_filter)
 
+    log_file = Path("debug.log")
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setFormatter(formatter)
+    file_handler.addFilter(short_name_filter)
+
     log_cfg = get_config()["logging"]
     log_level = log_cfg["log_level"]
 
     app_logger = logging.getLogger("vuln_validator")
     app_logger.handlers.clear()
+
     app_logger.addHandler(app_handler)
+    app_logger.addHandler(file_handler)
+
     app_logger.setLevel(log_level)
     app_logger.propagate = False
 

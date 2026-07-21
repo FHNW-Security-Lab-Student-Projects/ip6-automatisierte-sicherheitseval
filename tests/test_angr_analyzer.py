@@ -34,9 +34,18 @@ class DummySolver(BaseSolver):
         """
         return self._vuln_type
 
-    def solve(self, project, target_function, function_args, structs) -> Dict[str, Any]:
+    def solve(
+        self,
+        project,
+        target_function,
+        function_args,
+        structs,
+        stop_event=None,
+        **kwargs,
+    ) -> Dict[str, Any]:
         """
         Simulates the solve method of a real solver. It records the call and either returns a predefined result or raises a predefined error.
+        Accepts optional stop_event and extra kwargs to be compatible with real solvers.
         """
         self._calls.append(self._vuln_type)
         self._received_target = target_function

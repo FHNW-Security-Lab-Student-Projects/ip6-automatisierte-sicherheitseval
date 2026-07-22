@@ -6,7 +6,7 @@ max_steps = 500
 step_size = 1
 
 # Loop bound for LocalLoopSeer
-loop_bound = 10
+loop_bound = 5
 
 [solver.base_memory.input]
 # Size of symbolic stdin (bytes)
@@ -21,7 +21,7 @@ arg_start = 0xc0000000
 
 [analyzer]
 # Timeout in seconds for whole analysis to stop
-timeout_seconds = 180
+timeout_seconds = 58
 
 # Auto mode: stop after first vulnerability found
 auto_stop_on_first_found = false

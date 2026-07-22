@@ -192,12 +192,14 @@ class AngrAnalyzer:
         )
 
         master_result = {
+            "file": self.binary_path,
             "requested_type": vuln_type,
             "analyzed_types": [],
             "is_vulnerable": False,
             "evidence": [],
             "messages": [],
             "target_function": target_function,
+            "analysis_time_seconds": 0.0,
         }
 
         global_start_time = time.time()
@@ -257,6 +259,9 @@ class AngrAnalyzer:
             for item in solver_evidence:
                 item["source_solver"] = solver.vulnerability_type
             master_result["evidence"].extend(solver_evidence)
+            master_result["analysis_time_seconds"] = (
+                f"{end_time - global_start_time:.2f}"
+            )
 
             master_result["messages"].append(result.get("message", ""))
 

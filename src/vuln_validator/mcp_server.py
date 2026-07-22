@@ -1,17 +1,54 @@
+import asyncio
+import uuid
 from mcp.server.fastmcp import FastMCP
 from typing import List, Any, Dict
 
 from vuln_validator.utils.logging_config import setup_logging
-
 from vuln_validator.core.angr_analyzer import AngrAnalyzer
-from vuln_validator.utils.audit_logger import audit_log
+
+# from vuln_validator.utils.audit_logger import audit_log
 
 mcp = FastMCP("VulnValidator")
 
+# In-Memory-Job-Register (lives as long as the server process is running). Keys are job_ids, values are asyncio.Task objects.
+_JOBS: Dict[str, asyncio.Task] = {}
+
+
+def _run_analysis_blocking(
+    target_path, vulnerability_type, target_function, function_args, structs
+) -> dict:
+    """
+    This function is called in a separate thread (via asyncio.to_thread) to avoid blocking the main event loop.
+    """
+    analyzer = AngrAnalyzer(target_path)
+    return analyzer.run_analysis(
+        vulnerability_type, target_function, function_args, structs
+    )
+
+
+_ANALYSIS_SEM = asyncio.Semaphore(
+    1
+)  # 1 = strictly sequential, 2 = 2 parallel analyses, etc. (CPU-heavy, so don't go too high)
+
+
+async def _run_capped(
+    target_path, vulnerability_type, target_function, function_args, structs
+) -> dict:
+    async with (
+        _ANALYSIS_SEM
+    ):  # wait for a free slot (if all slots are busy, this will block until one is free)
+        return await asyncio.to_thread(
+            _run_analysis_blocking,
+            target_path,
+            vulnerability_type,
+            target_function,
+            function_args,
+            structs,
+        )
+
 
 @mcp.tool()
-@audit_log("validate_vulnerability")
-def validate_vulnerability(
+async def start_validation(
     target_path: str,
     target_function: str = None,
     function_args: List[Any] = None,
@@ -19,41 +56,46 @@ def validate_vulnerability(
     vulnerability_type: str = "auto",
 ) -> dict:
     """
-    Validates a vulnerability hypothesis using symbolic execution (angr).
-    If 'auto' is selected, the tool automatically detects the vulnerability type
-    and runs all relevant solvers. Use this if you are unsure about the specific vulnerability class.
-    Currently available specific vulnerability classes are: "stack_overflow", "heap_overflow", "format_string", "use_after_free".
-
-    Args:
-        target_path: Full path to the binary/source on the host system.
-        target_function: Optional specific function to analyze. If not provided, analysis starts from the entry point.
-        function_args: Optional dictionary of function arguments with their types and sizes.
-        structs: list of struct definitions used in the target function.
-        vulnerability_type: The type of vulnerability to check for.
-
-    Returns:
-        A JSON object with analysis results.
+    Starts the symbolic analysis as a background job and returns IMMEDIATELY.
+    Return the job_id to get_validation_result to retrieve the result.
     """
-    try:
-        angr_analyzer = AngrAnalyzer(target_path)
-        result = angr_analyzer.run_analysis(
-            vulnerability_type, target_function, function_args, structs
+    job_id = uuid.uuid4().hex
+    task = asyncio.ensure_future(
+        _run_capped(
+            target_path, vulnerability_type, target_function, function_args, structs
         )
+    )
+    _JOBS[job_id] = task
+    return {"job_id": job_id, "status": "running"}
 
-        return result
 
+@mcp.tool()
+async def get_validation_result(job_id: str) -> dict:
+    """
+    Asks for the status/result of a job started with start_validation.
+    status: 'running' = not finished yet (poll again later);
+            'done'    = 'result' contains the analysis result;
+            'error'   = 'message' contains the error;
+            'unknown' = job_id not found (e.g. server restarted).
+    """
+    task = _JOBS.get(job_id)
+    if task is None:
+        return {
+            "status": "unknown",
+            "message": f"No job with id {job_id}. Maybe the server restarted and lost all jobs?",
+        }
+    if not task.done():
+        return {"status": "running"}
+    try:
+        result = task.result()
+        _JOBS.pop(job_id, None)
+        return {"status": "done", "result": result}
     except FileNotFoundError as e:
-        return {
-            "error": "FileNotFound",
-            "message": str(e),
-            "suggestion": "Notify the user that the provided path is invalid.",
-        }
+        _JOBS.pop(job_id, None)
+        return {"status": "error", "error": "FileNotFound", "message": str(e)}
     except Exception as e:
-        return {
-            "error": "AnalysisError",
-            "message": str(e),
-            "suggestion": "An error occurred during analysis. Check the error message for details. Notify the user that the analysis failed.",
-        }
+        _JOBS.pop(job_id, None)
+        return {"status": "error", "error": "AnalysisError", "message": str(e)}
 
 
 if __name__ == "__main__":

@@ -44,15 +44,34 @@ Follow this strict procedure:
          - All other fields only need `size`.
          - The order of the fields must coincide with the struct definition!
 
-3. **Validation (asynchronous)**:
-   - **Phase 1 — Submit as you go.** As soon as you finish Step 2 for a suspected function, call `start_validation` with its parameters (`target_path`, `target_function`, `vulnerability_type`, `function_args`, `structs`). It returns `{"job_id": "...", "status": "running"}` immediately. Record each `job_id` with its (file, function, vulnerability_type) in a job list, then continue reading/analyzing the next function or file. Do NOT poll during this phase.
-   - **Phase 2 — Poll after everything is submitted.** Once ALL files have been read and ALL jobs submitted, cycle through the outstanding job_ids calling `get_validation_result`:
-     - `status: "running"` → keep it outstanding, check the next job_id, revisit on the next cycle. Do NOT give up.
-     - `status: "done"` → record its `result` and drop it from the outstanding set.
-     - `status: "error"` → record its `error`/`message` (Step 4, Case C) and drop it.
-     - `status: "unknown"` → re-issue `start_validation` for that function and re-add the new job_id.
-     - Repeat full cycles until the outstanding set is empty.
-   - Only then produce the Step 4 report for each function.
+3. **Validation (asynchronous with strict ordering)**:
+   - **Phase 1 — Submit sequentially.**
+     - Handle files strictly ONE AT A TIME in the order provided.
+     - For the CURRENT file:
+       - Read content, identify Target Functions (Step 1 & 2).
+       - For EACH suspected function: Immediately call `start_validation`.
+       - Store the returned `job_id` in an ordered list: `[(job_id_1, file_1, func_1), (job_id_2, file_2, func_2), ...]`.
+       - **Do NOT poll yet.** Proceed immediately to the NEXT file only after all functions in the current file are submitted.
+     - Repeat until ALL files are processed and all job_ids are recorded.
+
+   - **Phase 2 — Poll sequentially in exact order.**
+     - Once ALL jobs are submitted, iterate through your ordered list of `job_ids` from first to last. **Do not skip ahead.**
+     - For the CURRENT `job_id` in the list:
+       - Call `get_validation_result(job_id)`.
+       - **If status is "running"**:
+         - Do NOT call the tool again immediately.
+         - Output exactly this sentence: "Job {job_id} is still running. Please type 'continue' in 10 seconds to poll again."
+         - **STOP generating** and wait for my input.
+         - Only after I type 'continue', call `get_validation_result` for the SAME `job_id` again.
+       - **If status is "done"**:
+         - Proceed immediately to Step 4 (Final Report) for **this specific function**.
+         - **IMMEDIATELY** after generating the report, append the row to `evaluation_report.csv` (see Evaluation Protocol).
+         - Only after the CSV is updated, move to the NEXT `job_id` in the list.
+       - **If status is "error"**:
+         - Generate the error report (Step 4, Case C), append to CSV, then move to the NEXT `job_id`.
+       - **If status is "unknown"**:
+         - Generate the error report (Step 4, Case C), append to CSV and remark that status was unknown, then move to the NEXT `job_id`.
+     - **Critical Constraint:** You must strictly maintain the submission order. Do not check Job #5 while Job #2 is still "running". Finish Job #2 completely (including CSV write) before touching Job #3.
 
 4. **Final Report and Error Handling**:
    - Base your conclusion SOLELY on the `result` object returned by `get_validation_result` (status = "done").
@@ -66,7 +85,12 @@ Follow this strict procedure:
      - Do not speculate based on your initial hypothesis.
      - Include the exact location analyzed.
 
-   - **Case C: `get_validation_result` returns `status: "error"` with a message indicating "no corresponding binary found"**:
+   - **Case C: `is_vulnerable` is None**:
+     - State clearly that analysis errored.
+     - Do not speculate based on your initial hypothesis.
+     - Include the exact location analyzed.
+
+   - **Case D: `get_validation_result` returns `status: "error"` with a message indicating "no corresponding binary found"**:
      - Do NOT report a security status.
      - Inform the user that the required compiled binary is missing.
      - **If the source lacks a `main()` function (it is a library):**

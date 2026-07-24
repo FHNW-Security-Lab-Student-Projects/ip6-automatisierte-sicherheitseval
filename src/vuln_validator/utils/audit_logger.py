@@ -1,5 +1,6 @@
 import json
 import logging
+import inspect
 from functools import wraps
 from datetime import datetime
 from typing import Callable, Any, Dict
@@ -8,6 +9,7 @@ from pathlib import Path
 # Create logger for audit events
 audit_logger = logging.getLogger("vuln_validator.audit")
 audit_logger.setLevel(logging.INFO)
+# Disable propagation to avoid duplicate logs in the root logger
 audit_logger.propagate = False
 
 # init log file and handler only once to avoid duplicates
@@ -22,47 +24,34 @@ if not audit_logger.handlers:
 # Helper function for logging of audit events
 def log_audit_event(event_data: Dict[str, Any]) -> None:
     """
-    Writes a single event to the audit log.
-    Automatically adds a timestamp.
+    Writes a single JSON audit event to the log file.
     """
     full_event = {"timestamp": datetime.now().isoformat(), **event_data}
-    audit_logger.info(json.dumps(full_event))
+    audit_logger.info(json.dumps(full_event, default=str))
 
 
-# Decorator for automatic logging of function calls (in MCP server)
+# Decorator for async tool functions
 def audit_log(tool_name: str) -> Callable:
     """
-    A decorator that automatically logs the start, success, and failure of a function.
+    Decorator for async tool functions.
+
+    Logs:
+    - validation_started with the exact input parameters
+    - validation_completed with the returned value
+    - validation_failed if the tool raises an exception
     """
 
     def decorator(func: Callable) -> Callable:
+        if not inspect.iscoroutinefunction(func):
+            raise TypeError("@audit_log is only supported for async functions")
+
         @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            # Log Start
+        async def wrapper(*args, **kwargs) -> Any:
             log_audit_event(
                 {"event": "validation_started", "tool": tool_name, "input": kwargs}
             )
-
             try:
-                result = func(*args, **kwargs)
-
-                log_audit_event(
-                    {
-                        "event": "validation_completed",
-                        "tool": tool_name,
-                        "status": "success",
-                        "summary": {
-                            "is_vulnerable": result.get("is_vulnerable"),
-                            "findings_count": len(result.get("findings", [])),
-                            "message": result.get("message", ""),
-                            "evidence_input_hex": [
-                                e.get("input_hex") for e in result.get("evidence", [])
-                            ],
-                        },
-                    }
-                )
-                return result
-
+                result = await func(*args, **kwargs)
             except Exception as e:
                 log_audit_event(
                     {
@@ -72,7 +61,17 @@ def audit_log(tool_name: str) -> Callable:
                         "error_message": str(e),
                     }
                 )
-                return {"is_vulnerable": False, "error": str(e)}
+                raise
+
+            log_audit_event(
+                {
+                    "event": "validation_enqueued",
+                    "tool": tool_name,
+                    "status": "success",
+                    "result": result,
+                }
+            )
+            return result
 
         return wrapper
 

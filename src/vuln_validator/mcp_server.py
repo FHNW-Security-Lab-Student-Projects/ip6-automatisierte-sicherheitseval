@@ -6,48 +6,106 @@ from typing import List, Any, Dict
 from vuln_validator.utils.logging_config import setup_logging
 from vuln_validator.core.angr_analyzer import AngrAnalyzer
 
-# from vuln_validator.utils.audit_logger import audit_log
+from vuln_validator.utils.audit_logger import audit_log, log_audit_event
 
 mcp = FastMCP("VulnValidator")
 
-# In-Memory-Job-Register (lives as long as the server process is running). Keys are job_ids, values are asyncio.Task objects.
-_JOBS: Dict[str, asyncio.Task] = {}
+# Job register:
+# job_id -> {
+#   "status": "queued" | "running" | "done" | "error",
+#   "task": asyncio.Task,
+#   "result": Any,
+#   "error": Dict[str, str] | None
+# }
+_JOBS: Dict[str, Dict[str, Any]] = {}
+_JOB_QUEUE: asyncio.Queue[str] = asyncio.Queue()
+_QUEUE_WORKER_TASK: asyncio.Task | None = None
 
 
-def _run_analysis_blocking(
+def _ensure_queue_worker_started() -> None:
+    global _QUEUE_WORKER_TASK
+    if _QUEUE_WORKER_TASK is None or _QUEUE_WORKER_TASK.done():
+        _QUEUE_WORKER_TASK = asyncio.create_task(_queue_worker())
+
+
+async def _run_analysis(
     target_path, vulnerability_type, target_function, function_args, structs
 ) -> dict:
     """
-    This function is called in a separate thread (via asyncio.to_thread) to avoid blocking the main event loop.
+    Run the actual analysis in a worker thread.
+    Ordering is handled by the queue worker.
     """
     analyzer = AngrAnalyzer(target_path)
-    return analyzer.run_analysis(
-        vulnerability_type, target_function, function_args, structs
+    return await asyncio.to_thread(
+        analyzer.run_analysis,
+        vulnerability_type,
+        target_function,
+        function_args,
+        structs,
     )
 
 
-_ANALYSIS_SEM = asyncio.Semaphore(
-    1
-)  # 1 = strictly sequential, 2 = 2 parallel analyses, etc. (CPU-heavy, so don't go too high)
+async def _queue_worker() -> None:
+    """
+    Single background worker that processes jobs strictly in queue order.
 
+    One job is taken from _JOB_QUEUE at a time:
+    - mark it running
+    - run the analysis
+    - store result or error in _JOBS
+    - keep the job entry so the same job_id can be queried later
+    """
+    while True:
+        job_id = await _JOB_QUEUE.get()
+        job = _JOBS.get(job_id)
 
-async def _run_capped(
-    target_path, vulnerability_type, target_function, function_args, structs
-) -> dict:
-    async with (
-        _ANALYSIS_SEM
-    ):  # wait for a free slot (if all slots are busy, this will block until one is free)
-        return await asyncio.to_thread(
-            _run_analysis_blocking,
-            target_path,
-            vulnerability_type,
-            target_function,
-            function_args,
-            structs,
-        )
+        if job is None:
+            _JOB_QUEUE.task_done()
+            continue
+
+        job["status"] = "running"
+
+        _log_analysis_event("analysis_started", job_id, job)
+
+        try:
+            result = await _run_analysis(
+                job["target_path"],
+                job["vulnerability_type"],
+                job["target_function"],
+                job["function_args"],
+                job["structs"],
+            )
+            job["status"] = "done"
+            job["result"] = result
+            job["error"] = None
+            _log_analysis_event(
+                "analysis_completed", job_id, job, status="success", result=result
+            )
+
+        except FileNotFoundError as e:
+            job["status"] = "error"
+            job["error"] = {"error": "FileNotFound", "message": str(e)}
+            _log_analysis_event(
+                "analysis_failed", job_id, job, status="error", error_message=str(e)
+            )
+
+        except Exception as e:
+            job["status"] = "error"
+            job["error"] = {"error": "AnalysisError", "message": str(e)}
+
+            _log_analysis_event(
+                "analysis_failed",
+                job_id,
+                job,
+                status="error",
+                error_message=str(e),
+            )
+        finally:
+            _JOB_QUEUE.task_done()
 
 
 @mcp.tool()
+@audit_log("validate_vulnerability")
 async def start_validation(
     target_path: str,
     target_function: str = None,
@@ -56,51 +114,78 @@ async def start_validation(
     vulnerability_type: str = "auto",
 ) -> dict:
     """
-    Starts the symbolic analysis as a background job and returns IMMEDIATELY.
-    Return the job_id to get_validation_result to retrieve the result.
+    Starts a validation job and returns immediately.
+    The job is queued and processed later by the single background worker.
     """
+    _ensure_queue_worker_started()
+
     job_id = uuid.uuid4().hex
-    task = asyncio.ensure_future(
-        _run_capped(
-            target_path, vulnerability_type, target_function, function_args, structs
-        )
-    )
-    _JOBS[job_id] = task
-    return {"job_id": job_id, "status": "running"}
+    _JOBS[job_id] = {
+        "status": "queued",
+        "result": None,
+        "error": None,
+        "target_path": target_path,
+        "target_function": target_function,
+        "function_args": function_args,
+        "structs": structs,
+        "vulnerability_type": vulnerability_type,
+    }
+
+    await _JOB_QUEUE.put(job_id)
+    return {"job_id": job_id, "status": "queued"}
 
 
 @mcp.tool()
 async def get_validation_result(job_id: str) -> dict:
     """
-    Asks for the status/result of a job started with start_validation.
-    status: 'running' = not finished yet (poll again later);
-            'done'    = 'result' contains the analysis result;
-            'error'   = 'message' contains the error;
-            'unknown' = job_id not found (e.g. server restarted).
+    Poll the status/result of a previously started job.
+
+    queued/running -> wait 15 seconds, then return running if still not done
+    done           -> return result
+    error          -> return error
+    unknown        -> job_id not found
     """
-    task = _JOBS.get(job_id)
-    if task is None:
+    job = _JOBS.get(job_id)
+    if job is None:
         await asyncio.sleep(1)
         return {
             "status": "unknown",
             "message": f"No job with id {job_id}. Try again.",
         }
-    if not task.done():
-        await asyncio.sleep(
-            15
-        )  # wait a bit before returning, to avoid hammering the server with requests
-        if not task.done():
+
+    if job["status"] in ("queued", "running"):
+        await asyncio.sleep(15)  # keep LLM from hammering the server
+        job = _JOBS.get(job_id)
+        if job["status"] in ("queued", "running"):
             return {"status": "running"}
-    try:
-        result = task.result()
-        _JOBS.pop(job_id, None)
-        return {"status": "done", "result": result}
-    except FileNotFoundError as e:
-        _JOBS.pop(job_id, None)
-        return {"status": "error", "error": "FileNotFound", "message": str(e)}
-    except Exception as e:
-        _JOBS.pop(job_id, None)
-        return {"status": "error", "error": "AnalysisError", "message": str(e)}
+
+    if job["status"] == "done":
+        return {"status": "done", "result": job["result"]}
+
+    if job["status"] == "error":
+        return {
+            "status": "error",
+            "error": job["error"]["error"],
+            "message": job["error"]["message"],
+        }
+
+    return {
+        "status": "unknown",
+        "message": f"Unknown state for job {job_id}. Stop analysis and ask user for help.",
+    }
+
+
+def _log_analysis_event(
+    event: str, job_id: str, job: Dict[str, Any], **extra: Any
+) -> None:
+    log_audit_event(
+        {
+            "event": event,
+            "tool": "validate_vulnerability",
+            "job_id": job_id,
+            **extra,
+        }
+    )
 
 
 if __name__ == "__main__":

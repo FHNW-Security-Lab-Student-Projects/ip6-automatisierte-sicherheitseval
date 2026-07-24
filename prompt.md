@@ -59,10 +59,10 @@ Follow this strict procedure:
      - For the CURRENT `job_id` in the list:
        - Call `get_validation_result(job_id)`.
        - **If status is "running"**:
-         - Do NOT call the tool again immediately.
-         - Output exactly this sentence: "Job {job_id} is still running. Please type 'continue' in 10 seconds to poll again."
-         - **STOP generating** and wait for my input.
-         - Only after I type 'continue', call `get_validation_result` for the SAME `job_id` again.
+         - **Immediately** call `get_validation_result` again for the **same** `job_id`.
+         - **Do not wait manually**: The server enforces a built-in delay before responding.
+         - **Repeat** until status is "done" or "error".
+         - **Safety**: A server-side hard timeout guarantees termination; you will never poll indefinitely.
        - **If status is "done"**:
          - Proceed immediately to Step 4 (Final Report) for **this specific function**.
          - **IMMEDIATELY** after generating the report, append the row to `evaluation_report.csv` (see Evaluation Protocol).
@@ -70,6 +70,7 @@ Follow this strict procedure:
        - **If status is "error"**:
          - Generate the error report (Step 4, Case C), append to CSV, then move to the NEXT `job_id`.
        - **If status is "unknown"**:
+         - Do NOT move to the next job. This is a temporary state. Call get_validation_result again for the SAME job_id. Repeat until status is "done", "error", or you have tried 3 times. Only then log as error and move on.
          - Generate the error report (Step 4, Case C), append to CSV and remark that status was unknown, then move to the NEXT `job_id`.
      - **Critical Constraint:** You must strictly maintain the submission order. Do not check Job #5 while Job #2 is still "running". Finish Job #2 completely (including CSV write) before touching Job #3.
 

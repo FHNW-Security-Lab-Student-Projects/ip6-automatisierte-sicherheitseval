@@ -80,12 +80,17 @@ async def get_validation_result(job_id: str) -> dict:
     """
     task = _JOBS.get(job_id)
     if task is None:
+        await asyncio.sleep(1)
         return {
             "status": "unknown",
-            "message": f"No job with id {job_id}. Maybe the server restarted and lost all jobs?",
+            "message": f"No job with id {job_id}. Try again.",
         }
     if not task.done():
-        return {"status": "running"}
+        await asyncio.sleep(
+            15
+        )  # wait a bit before returning, to avoid hammering the server with requests
+        if not task.done():
+            return {"status": "running"}
     try:
         result = task.result()
         _JOBS.pop(job_id, None)

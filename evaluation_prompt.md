@@ -2,7 +2,7 @@
 **EVALUATION PROTOCOL (APPEND TO ABOVE INSTRUCTIONS):**
 
 1.  **Action:** Create (or append to) a file named `evaluation_report.csv` in the root directory.
-2.  **Header:** If new, write: `file_path,file_name,hypothesis,is_vulnerable,vulnerability_type,target_function,evidence,input_hex,code_line,time,validation_status,remark`
+2.  **Header:** If the file is new, write the CSV headers first (you see them in step 3)
 3.  **Row Generation (IMMEDIATE WRITE):**
     -   **Trigger:** As soon as you receive a `status: "done"` or `status: "error"` from `get_validation_result` for a specific function, you must stop all other activities.
     -   **Action:** Generate the report (Step 4) and **IMMEDIATELY** append the corresponding CSV row to `evaluation_report.csv`.

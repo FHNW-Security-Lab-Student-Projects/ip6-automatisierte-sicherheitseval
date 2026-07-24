@@ -7,7 +7,6 @@ step_size = 1
 
 # Loop bound for LocalLoopSeer
 loop_bound = 5
-loop_bound = 5
 
 [solver.base_memory.input]
 # Size of symbolic stdin (bytes)

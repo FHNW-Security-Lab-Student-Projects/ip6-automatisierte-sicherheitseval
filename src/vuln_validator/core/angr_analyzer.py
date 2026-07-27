@@ -238,6 +238,10 @@ class AngrAnalyzer:
                 master_result["messages"].append(
                     f"Error in {solver.vulnerability_type} solver: {str(e)}"
                 )
+                if "Incorrect index" in str(e):
+                    master_result["messages"].append(
+                        "Maybe input size too large for mapped stack. Try reducing pointer input size or check buffer definitions."
+                    )
                 if not continue_on_error:
                     logger.info(
                         "Halting further analysis due to error and configuration settings."

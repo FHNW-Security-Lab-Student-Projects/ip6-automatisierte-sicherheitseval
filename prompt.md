@@ -24,6 +24,10 @@ Follow this strict procedure:
    - **A. Function Arguments**:
      - Classify each argument of the **Target Function** into exactly one of these types:
        - `pointer`: A pointer argument. Must include a `size` in bytes representing the buffer size. If it points to a struct add `is_struct` true.
+         - **RULE FOR SIZE**: 
+          1. If the pointer targets a fixed-size buffer declared in the code, use that exact size + 32.
+          2. If the pointer is `argv` in `main()` or external input with no fixed size: Assume a size just large enough to overflow. Do NOT use excessive sizes as this causes solver errors and increases runtime. Never default to 8 bytes. The size represents **input capacity**, not the pointer itself.
+       - `variable`: A primitive value argument (integer, char, etc.) that should be treated as symbolic input. Must include a `size` in bytes. If it is a struct add `is_struct` true.
        - `variable`: A primitive value argument (integer, char, etc.) that should be treated as symbolic input. Must include a `size` in bytes. If it is a struct add `is_struct` true.
        - `concrete`: A fixed, constant value passed directly without symbolic variation.
      - If the target function takes no arguments, the list is empty.
@@ -65,8 +69,6 @@ Follow this strict procedure:
          - **Safety**: A server-side hard timeout guarantees termination; you will never poll indefinitely.
        - **If status is "done"**:
          - Proceed immediately to Step 4 (Final Report) for **this specific function**.
-         - **IMMEDIATELY** after generating the report, append the row to `evaluation_report.csv` (see Evaluation Protocol).
-         - Only after the CSV is updated, move to the NEXT `job_id` in the list.
        - **If status is "error"**:
          - Generate the error report (Step 4, Case C), append to CSV, then move to the NEXT `job_id`.
        - **If status is "unknown"**:

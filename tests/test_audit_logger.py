@@ -80,15 +80,15 @@ class TestLogAuditEvent:
 class TestAuditLogDecorator:
     """Tests for the `audit_log` decorator"""
 
-    def test_decorator_success_flow(self, temp_log_file):
-        """Checks that the decorator logs both the start and successful completion of a decorated function, and that the summary contains expected fields."""
+    @pytest.mark.asyncio
+    async def test_decorator_success_flow(self, temp_log_file):
+        """Checks that the decorator logs both the start and successful completion of a decorated function."""
 
-        # define a mock function
         @audit_log(tool_name="mock_solver")
-        def mock_func(input_val):
+        async def mock_func(input_val):
             return {"is_vulnerable": True, "findings": ["find1", "find2"]}
 
-        mock_func(input_val="test_binary")
+        await mock_func(input_val="test_binary")
 
         content = temp_log_file.read_text(encoding="utf-8")
         lines = content.strip().split("\n")
@@ -104,23 +104,21 @@ class TestAuditLogDecorator:
         assert start_entry["input"] == {"input_val": "test_binary"}
 
         # check Success-Log
-        assert success_entry["event"] == "validation_completed"
+        assert success_entry["event"] == "validation_enqueued"
         assert success_entry["status"] == "success"
-        assert success_entry["summary"]["is_vulnerable"] is True
-        assert success_entry["summary"]["findings_count"] == 2
+        assert success_entry["result"]["is_vulnerable"] is True
+        assert len(success_entry["result"]["findings"]) == 2
 
-    def test_decorator_error_flow(self, temp_log_file):
-        """Checks if exceptions raised in the decorated function are caught and logged as errors, and that the decorator returns a fallback response."""
+    @pytest.mark.asyncio
+    async def test_decorator_error_flow(self, temp_log_file):
+        """Checks if exceptions raised in the decorated function are logged as errors."""
 
         @audit_log(tool_name="failing_solver")
-        def failing_func():
+        async def failing_func():
             raise ValueError("Simulated error")
 
-        result = failing_func()
-
-        # decorator shoud return a fallback dict with error information instead of raising the exception
-        assert result["is_vulnerable"] is False
-        assert "Simulated error" in result["error"]
+        with pytest.raises(ValueError, match="Simulated error"):
+            await failing_func()
 
         content = temp_log_file.read_text(encoding="utf-8")
         lines = content.strip().split("\n")
@@ -133,10 +131,10 @@ class TestAuditLogDecorator:
         assert error_entry["error_message"] == "Simulated error"
 
     def test_decorator_preserves_function_metadata(self):
-        """Checks that the `audit_log` decorator preserves the original function's name and docstring using `functools.wraps`."""
+        """Checks that the `audit_log` decorator preserves function name/docstring."""
 
         @audit_log(tool_name="meta_test")
-        def specific_function():
+        async def specific_function():
             """This is a test docstring."""
             return {}
 

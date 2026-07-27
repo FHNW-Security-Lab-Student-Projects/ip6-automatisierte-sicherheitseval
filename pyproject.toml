@@ -15,6 +15,7 @@ dependencies = [
     "monkeyhex>=1.7.4",
     "pyelftools>=0.32",
     "pytest>=9.0.2",
+    "pytest-asyncio>=1.4.0",
     "unicorn>=2.1.4",
 ]
 

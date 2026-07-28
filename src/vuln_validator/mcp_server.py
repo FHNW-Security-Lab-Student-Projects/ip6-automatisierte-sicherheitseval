@@ -1,25 +1,47 @@
 import asyncio
 import uuid
+import json
+import time
+import os
+from pathlib import Path
 from mcp.server.fastmcp import FastMCP
 from typing import List, Any, Dict
 
 from vuln_validator.utils.logging_config import setup_logging
 from vuln_validator.core.angr_analyzer import AngrAnalyzer
-
 from vuln_validator.utils.audit_logger import audit_log, log_audit_event
 
 mcp = FastMCP("VulnValidator")
 
-# Job register:
-# job_id -> {
-#   "status": "queued" | "running" | "done" | "error",
-#   "task": asyncio.Task,
-#   "result": Any,
-#   "error": Dict[str, str] | None
-# }
-_JOBS: Dict[str, Dict[str, Any]] = {}
+
+JOBS_DIR = Path(".mcp_jobs")
+JOBS_DIR.mkdir(exist_ok=True)
+
 _JOB_QUEUE: asyncio.Queue[str] = asyncio.Queue()
 _QUEUE_WORKER_TASK: asyncio.Task | None = None
+
+
+def _get_job_path(job_id: str) -> Path:
+    return JOBS_DIR / f"{job_id}.json"
+
+
+def _load_job(job_id: str) -> Dict[str, Any] | None:
+    path = _get_job_path(job_id)
+    if not path.exists():
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return None
+
+
+def _save_job(job_id: str, data: Dict[str, Any]) -> None:
+    path = _get_job_path(job_id)
+    tmp_path = path.with_suffix(".tmp")
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+    tmp_path.replace(path)
 
 
 def _ensure_queue_worker_started() -> None:
@@ -57,13 +79,15 @@ async def _queue_worker() -> None:
     """
     while True:
         job_id = await _JOB_QUEUE.get()
-        job = _JOBS.get(job_id)
+        job = _load_job(job_id)
 
         if job is None:
             _JOB_QUEUE.task_done()
             continue
 
         job["status"] = "running"
+        job["updated_at"] = time.time()
+        _save_job(job_id, job)
 
         _log_analysis_event("analysis_started", job_id, job)
 
@@ -78,6 +102,8 @@ async def _queue_worker() -> None:
             job["status"] = "done"
             job["result"] = result
             job["error"] = None
+            job["updated_at"] = time.time()
+            _save_job(job_id, job)
             _log_analysis_event(
                 "analysis_completed", job_id, job, status="success", result=result
             )
@@ -85,6 +111,9 @@ async def _queue_worker() -> None:
         except FileNotFoundError as e:
             job["status"] = "error"
             job["error"] = {"error": "FileNotFound", "message": str(e)}
+            job["result"] = None
+            job["updated_at"] = time.time()
+            _save_job(job_id, job)
             _log_analysis_event(
                 "analysis_failed", job_id, job, status="error", error_message=str(e)
             )
@@ -92,6 +121,9 @@ async def _queue_worker() -> None:
         except Exception as e:
             job["status"] = "error"
             job["error"] = {"error": "AnalysisError", "message": str(e)}
+            job["result"] = None
+            job["updated_at"] = time.time()
+            _save_job(job_id, job)
 
             _log_analysis_event(
                 "analysis_failed",
@@ -120,7 +152,8 @@ async def start_validation(
     _ensure_queue_worker_started()
 
     job_id = uuid.uuid4().hex
-    _JOBS[job_id] = {
+    job_data = {
+        "job_id": job_id,
         "status": "queued",
         "result": None,
         "error": None,
@@ -129,7 +162,11 @@ async def start_validation(
         "function_args": function_args,
         "structs": structs,
         "vulnerability_type": vulnerability_type,
+        "created_at": time.time(),
+        "updated_at": time.time(),
     }
+
+    _save_job(job_id, job_data)
 
     await _JOB_QUEUE.put(job_id)
     return {"job_id": job_id, "status": "queued"}
@@ -145,7 +182,8 @@ async def get_validation_result(job_id: str) -> dict:
     error          -> return error
     unknown        -> job_id not found
     """
-    job = _JOBS.get(job_id)
+    job = _load_job(job_id)
+
     if job is None:
         await asyncio.sleep(1)
         return {
@@ -155,7 +193,7 @@ async def get_validation_result(job_id: str) -> dict:
 
     if job["status"] in ("queued", "running"):
         await asyncio.sleep(15)  # keep LLM from hammering the server
-        job = _JOBS.get(job_id)
+        job = _load_job(job_id)
         if job["status"] in ("queued", "running"):
             return {"status": "running"}
 
@@ -171,7 +209,7 @@ async def get_validation_result(job_id: str) -> dict:
 
     return {
         "status": "unknown",
-        "message": f"Unknown state for job {job_id}. Stop analysis and ask user for help.",
+        "message": f"Unknown state for job {job_id}.",
     }
 
 
@@ -183,6 +221,7 @@ def _log_analysis_event(
             "event": event,
             "tool": "validate_vulnerability",
             "job_id": job_id,
+            "server_pid": str(os.getpid()),
             **extra,
         }
     )

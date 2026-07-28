@@ -10,22 +10,20 @@
     -   **Columns:**
         -   `job_id`
         -   `file_path`, `file_name`: From source.
-        -   `hypothesis`: Your initial finding from Step 1 (e.g., "Suspected stack_overflow in main" or "none").
+        -   `hypothesis_vuln_type`: Your initial finding from Step 1 but only the vulnerability type (e.g., "stack_overflow", "heap_oveflow").
+        -   `hypothesis_target_function`: Where you suspect the vulnerability (e.g., "main" or "none" if you think it's safe)
+        -   `hypothesis_explanation`: Explain short why this is your hypothesis
         -   `tool_call_json`: All paramters you passed when calling `start_validation`. Write as JSON-String.
-        -   `vulnerability_type`: Type from result or `none`.
-        -   `target_function`: Function name.
-        -   `is_vulnerable`: `true`/`false` (from result).
+        -   `vulnerability_type`: The vulnerability type the framework confirmed from result or `none` if the Framework didn't find a vulnerability.
+        -   `target_function`: Function name the framework analyzed (which you can find in the result).
+        -   `is_vulnerable`: `true`/`false`/`none` (from result).
         -   `evidence`: Concise technical evidence (escape commas).
         -   `input_hex`: Hex string from tool or `n/a`.
         -   `code_line`: Line number or `n/a`.
         -   `time`: The value of `analysis_time_seconds` from the result object.
-        -   `validation_status` (final verdict):
-            -   If `is_vulnerable` is **None** (Case D): Write `solver_error`.
-            -   Hypothesis suspected + `is_vulnerable=true` → `confirmed`
-            -   Hypothesis suspected + `is_vulnerable=false` → `Vulnerability not found by solver! Might be false positive`
-            -   Hypothesis suspected + (timeout/error) → `solver timeout`
-            -   No hypothesis → `safe`
-        -   `remark`: Notes (e.g., "Binary missing", "Timeout").
+        -   `validation_status`:
+            -   Check whole result if the validation succeded (also read the message). If there was timeout you write `timeout`, if there was an error you write `error`. If it found a vulnerability you write `vuln_found` and if it din't find anything you write `no_vuln_found`.
+        -   `remark`: Notes (e.g., "Binary missing" or whatever there ist in the message).
 4.  **Continuity:** Do not output CSV content in chat. Only confirm: "Row appended for [filename].". Then proceed to the next job_id in the ordered list.
 5.  **Error Handling:** If a tool call fails, record `is_vulnerable=false`, `remark`="Tool Error", write to CSV, then continue.
 

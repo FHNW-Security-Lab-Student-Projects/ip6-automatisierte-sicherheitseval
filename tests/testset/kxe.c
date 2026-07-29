@@ -9,8 +9,7 @@ void vuln(char *string)
   char buffer[64];
 
   target = 0;
-
-  sprintf(buffer, "%s", string);
+  sprintf(buffer, "%63s", string);
   
   if(target == 0xdeadbeef) {
       printf("you have hit the target correctly :)\n");

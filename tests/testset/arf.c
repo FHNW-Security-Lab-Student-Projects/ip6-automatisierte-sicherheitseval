@@ -30,6 +30,7 @@ int main(int argc, char **argv)
     }
     if(strncmp(line, "reset", 5) == 0) {
       free(auth);
+      auth = NULL;
     }
     if(strncmp(line, "service", 6) == 0) {
       service = strdup(line + 7);

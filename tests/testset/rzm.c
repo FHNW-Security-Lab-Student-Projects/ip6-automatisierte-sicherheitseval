@@ -59,7 +59,7 @@ void serve_patrick() {
     fflush(stdout);
 
     char choice1[BUFSIZE];
-    scanf("%s", choice1);
+    scanf("%31s", choice1);
     char *menu1[3] = {"Breakf@st_Burger", "Gr%114d_Cheese", "Bac0n_D3luxe"};
     if (!on_menu(choice1, menu1, 3)) {
         printf("%s", "There is no such burger yet!\n");
@@ -89,7 +89,7 @@ void serve_bob() {
     fflush(stdout);
 
     char choice2[BUFSIZE];
-    scanf("%s", choice2);
+    scanf("%31s", choice2);
     char *menu2[3] = {"Pe%to_Portobello", "$outhwest_Burger", "Cla%sic_Che%s%steak"};
     if (!on_menu(choice2, menu2, 3)) {
         printf("%s", "There is no such burger yet!\n");

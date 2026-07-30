@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Bachelor Thesis: A Python framework using symbolic execution to automatically verify vulnerabilities detected by Large Language Models, reducing false positives.">
+    <title>Symbolic Execution to Verify Vulnerabilities Detected by LLMs</title>
+    <link href="https://web0.fhnw.ch/ht/informatik/css/style.css" type="text/css" rel="stylesheet" media="screen">
+    <script src="https://web0.fhnw.ch/ht/informatik/js/main.js"></script>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+           <div class="row">
+                <div class="col s12 offset-m1 m10 offset-l2 l8">
+                    <a href="https://www.fhnw.ch/de/studium/informatik" class="hsi">
+                        <picture>
+                            <source media="(min-width: 600px)" srcset="https://web0.fhnw.ch/ht/informatik/images/fhnw_hsi_en.svg">
+                            <img src="https://web0.fhnw.ch/ht/informatik/images/fhnw_hsi_small.svg" alt="HSI">
+                        </picture>
+                    </a>
+               </div>
+            </div>
+        </div>
+    </header>
+    <main id="content">
+        <div class="container">
+            <div class="row">
+                <div class="col s12 offset-m1 m10 offset-l2 l8">
+                    <h1>Symbolic Execution to Verify Vulnerabilities Detected by LLMs</h1>
+                    <h2>Automating the verification of AI-detected security vulnerabilities using symbolic execution to eliminate false positives and prove exploitability.</h2>
+                    <p><img src="https://web0.fhnw.ch/ht/informatik/images/figure_1.png" class="responsive" alt="Figure 1"><br>Project Overview. An LLM identifies potential vulnerabilities in source code. The framework acts as a rigorous filter, using symbolic execution to verify these findings. Only mathematically proven vulnerabilities are reported; false positives are discarded.</p>
+                    <h3>Initial situation</h3>
+                    <p>Large Language Models (LLMs) are increasingly used for static code analysis and vulnerability detection. While they excel at identifying potential patterns, they suffer from a high rate of false positives, often flagging safe code as vulnerable because they lack a deep understanding of runtime behavior and data flow. Security teams are overwhelmed by manually verifying these alerts, leading to "alert fatigue" and reduced trust in automated tools. Current static analysis tools often lack the precision to distinguish between a theoretical bug and an actually exploitable vulnerability.</p>
+                    <h3>Problem statement / Project goal</h3>
+                    <p>The primary goal of this project is to bridge the gap between AI-driven detection and formal verification. The project aims to develop a Python-based framework that automatically takes vulnerability candidates identified by an LLM and verifies them using symbolic execution (powered by the angr framework). The system must prove whether a reported vulnerability is genuinely exploitable by generating a concrete proof of concept (symbolic state reaching an unsafe condition), thereby filtering out false positives and prioritizing critical risks.</p>
+                </div>
+            </div><!-- end row -->
+        </div> <!-- end container -->
+        <section class="grey-1">
+            <div class="container">
+                <div class="row">
+                    <div class="col s12 m6 l4">
+                        <h3>MCP Architecture</h3>
+                        <div class="materialboxed-wrap">
+                            <img src="https://web0.fhnw.ch/ht/informatik/images/figure_2.png" class="responsive materialboxed hoverable" alt="MCP Server Architecture">
+                        </div>
+                        <p>The Model Context Protocol (MCP) server acts as the bridge between the LLM planner and the symbolic execution solver, managing task decomposition and result aggregation.</p>
+                    </div>
+                    <div class="col s12 m6 l4">
+                        <h3>Solver in Action</h3>
+                        <div class="materialboxed-wrap">
+                            <img src="https://web0.fhnw.ch/ht/informatik/images/figure_3.png" class="responsive materialboxed hoverable" alt="Terminal output showing verified vulnerability">
+                        </div>
+                        <p>Real-time verification output: The framework successfully identifies a vulnerability by detecting a symbolic instruction pointer (unconstrained state).</p>
+                    </div>
+                    <div class="col s12 m6 l4">
+                        <h3>Symbolic Memory Modeling</h3>
+                        <div class="materialboxed-wrap">
+                            <img src="https://web0.fhnw.ch/ht/informatik/images/figure_4.png" class="responsive materialboxed hoverable" alt="Visualization of symbolic memory handling">
+                        </div>
+                        <p>Visualization of the symbolic memory strategy: Critical memory regions (stack, heap, or freed blocks) are filled with symbolic variables to track data flow and detect corruption.</p>
+                    </div>
+                </div><!-- end row -->
+            </div> <!-- end container -->
+        </section><!-- end section -->
+        <div class="container">
+            <div class="row">
+                <div class="col s12 offset-m1 m10 offset-l2 l8">
+                    <h3>Solution developed and its benefits</h3>
+                    <p>The developed framework provides a modular architecture for verifying memory-related vulnerabilities in C/C++ binaries. It supports multiple solver strategies for different vulnerability classes, including Stack Overflows, Heap Overflows, Use-After-Free, and Format String vulnerabilities. By leveraging symbolic execution, the tool mathematically proves whether an input exists that triggers the vulnerability, rather than relying on heuristics.</p>
+                    <ul class="nobullet">
+                        <li>Automated reduction of false positives from LLM-based code scans.</li>
+                        <li>Proof of exploitability via symbolic state analysis (e.g., unconstrained RIP, canary hits).</li>
+                        <li>Modular solver design allowing specific strategies for Stack, Heap, UAF, and Format String vulnerabilities.</li>
+                        <li>Integration of Model Context Protocol (MCP) for structured LLM-Agent communication.</li>
+                        <li>DWARF-aware analysis for accurate struct and variable resolution in binaries with debug symbols.</li>
+                        <li>Configurable simulation limits (max steps, loop bounds) to balance analysis depth and performance.</li>
+                        <li>Detailed evidence generation (concrete input values, crash states) for developer feedback.</li>
+                        <li>Custom heap simulation to model dynamic memory allocation and detection of logical errors.</li>
+                    </ul>
+                    <p>The system significantly reduces the manual effort required for security audits. Instead of reviewing hundreds of potential issues, developers only need to address the verified, high-confidence vulnerabilities. The approach shifts the focus from "possible bugs" to "proven exploits".</p>
+                    
+                    <h3>Key terms</h3>
+                    <ul class="keyterms">
+                        <li><span>Symbolic Execution</span>Program analysis technique treating inputs as symbols to explore all feasible execution paths.</li>
+                        <li><span>Large Language Models (LLM)</span>AI models used for initial vulnerability detection and code pattern recognition.</li>
+                        <li><span>False Positive Reduction</span>The process of filtering out incorrectly flagged vulnerabilities to improve signal-to-noise ratio.</li>
+                        <li><span>Memory Corruption</span>Class of vulnerabilities including Overflows and Use-After-Free where memory integrity is violated.</li>
+                        <li><span>angr</span>Binary analysis framework used for the symbolic execution engine.</li>
+                        <li><span>Model Context Protocol (MCP)</span>Standard for connecting AI models to external tools and data sources.</li>
+                        <li><span>Unconstrained State</span>Symbolic execution state where the instruction pointer is fully symbolic, indicating potential control flow hijacking.</li>
+                        <li><span>DWARF</span>Debugging format used to map binary addresses back to source code variables and structs.</li>
+                    </ul>
+                    <h3>Customer</h3>
+                    <p><strong>Internal FHNW Project</strong><br>
+                        Institute for Mobile and Distributed Systems (IMVS)<br>
+                        University of Applied Sciences Northwestern Switzerland<br>
+                        Bahnhofstrasse 6<br>
+                        5210 Windisch<br>
+                        <a href="https://www.fhnw.ch/de/informatik/ueber-uns/institute/mobile-und-verteilte-systeme">IMVS Website</a>
+                    </p>
+                    <h3>Team</h3>
+                    <div class="row">
+                        <div class="col s12 l3">
+                            <p>Marko Bühler<br></p>
+                            <p><strong>Advisor</strong><br>
+                               <a href="mailto:christopher.scherb@fhnw.ch">Christopher Scherb</a><br>
+                               <a href="mailto:luc.heitz@fhnw.ch">Luc Heitz</a></p>
+                        </div>
+                    </div><!-- end row -->
+                </div>
+            </div>
+        </div>
+    </main>
+    <footer class="black">
+        <div class="container">
+            <div class="row">
+                <div class="col s12 offset-m1 m10 offset-l2 l8">
+                    <h4><img src="https://web0.fhnw.ch/ht/informatik/images/arrow-left-long-solid.svg" alt="arrow"> <a href="../index.html">Bachelor thesis overview</a></h4>
+                    <p>If you are interested in becoming a customer, please contact <a href="mailto:projekte.sgi.technik@fhnw.ch">projekte.sgi.technik@fhnw.ch</a></p>
+                </div>
+            </div><!-- end row -->
+        </div>
+    </footer>
+</body>
+</html>

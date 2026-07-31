@@ -1,3 +1,62 @@
+## [0.7.0] - 2026-07-31
+
+### 🚀 Features
+
+- Add first working draft of UAF-Solver
+- Extend prompt for LLM to to error handling, suggest compile command and limit LLM output
+- Add Double-Free warning
+- Make loop_bound configurable
+- First draft solver timeout
+- Make timeout global
+- Make timeout configurable
+- Save logs in file (for windows usage)
+- First draft of async polling
+- Add more details to analysis Result (file and time)
+- First draft of evaluation prompt
+- Use queue instead of semaphore
+- Update audit logging for async
+- Add script to compare evaluation results
+
+### 🐛 Bug Fixes
+
+- Timeout limit (only for server side)
+- Remove double line in config
+- Optimize prompt (buffer size) and extend error message in AngrAnalyzer
+- Save jobs as file to prevent unknown states
+- Fix vulnerability in safe code (testset)
+
+### 🚜 Refactor
+
+- UAF-Solver inherits from HeapSolver
+
+### 📚 Documentation
+
+- Add class diagram
+- Complete Readme
+- Specify local usage
+- Clarify instructions and precise version of python
+- Add evaluation results
+
+### 🧪 Testing
+
+- Adjust angr_analyzer test to accept stop_event arg
+- Adjust tests to run async
+
+### ⚙️ Miscellaneous Tasks
+
+- Add uaf binaries
+- Add ctf source code and binaries
+- Remove unused file
+- *(merge)* Updates from dev
+- Extend Prompt
+- Prompt optimization and waiting time for response
+- Adjust evaluation prompt for clearer results
+- Add testset for evaluation
+- Update evaluation prompt (more useful result to compare)
+- Add dependencies for evaluation
+- Update evluation script
+- Update safe binary
+- *(merge)* Merge pull request #8 from FHNW-Security-Lab-Student-Projects/dev
 ## [0.6.0] - 2026-07-14
 
 ### 🚀 Features
@@ -80,6 +139,7 @@
 - Add docstrings to config_loader.py
 - Add scanf test binary
 - *(merge)* Merge pull request #7 from FHNW-Security-Lab-Student-Projects/dev
+- Update changelog
 ## [0.5.0] - 2026-06-03
 
 ### 🚀 Features

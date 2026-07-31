@@ -1,0 +1,60 @@
+file_name,original,Vulnerability,is_vulnerable,code_line,exp_target_function,function_head,exp_args,exp_structs,remark
+qxz.c,protostar/stack_zero.c,stack_overflow,true,11,main,"int main(int argc, char **argv)","[{""type"":""concrete"",""value"":1},{""type"":""pointer"",""size"":8}]",[],args irrelevant
+mvo.c,,safe,false,,main,"int main(int argc, char **argv)","[{""type"":""concrete"",""value"":1},{""type"":""pointer"",""size"":8}]",[],Save variant of qxz.c (protostar/stack_zero.c)
+jtr.c,protostar/stack_one.c,stack_overflow,true,16,main,"int main(int argc, char **argv)","[{""type"":""concrete"",""value"":2},{""type"":""pointer"",""size"":96}]",[],argv[1] used
+bwp.c,,safe,false,,main,"int main(int argc, char **argv)","[{""type"":""concrete"",""value"":2},{""type"":""pointer"",""size"":96}]",[],Save variant of jtr.c (protostar/stack_one.c)
+kls.c,protostar/stack_two.c,stack_overflow,true,20,main,"int main(int argc, char **argv)","[{""type"":""concrete"",""value"":1},{""type"":""pointer"",""size"":8}]",[],args irrelevant
+dnh.c,,safe,false,,main,"int main(int argc, char **argv)","[{""type"":""concrete"",""value"":1},{""type"":""pointer"",""size"":8}]",[],Save variant of kls.c (protostar/stack_two.c)
+fyg.c,protostar/stack_three.c,stack_overflow,true,18,main,"int main(int argc, char **argv)","[{""type"":""concrete"",""value"":1},{""type"":""pointer"",""size"":8}]",[],args irrelevant
+rpe.c,,safe,false,,main,"int main(int argc, char **argv)","[{""type"":""concrete"",""value"":1},{""type"":""pointer"",""size"":8}]",[],Save variant of fyg.c (protostar/stack_three.c)
+wuj.c,protostar/stack_four.c,stack_overflow,true,15,main,"int main(int argc, char **argv)","[{""type"":""concrete"",""value"":1},{""type"":""pointer"",""size"":8}]",[],args irrelevant
+zic.c,,safe,false,,main,"int main(int argc, char **argv)","[{""type"":""concrete"",""value"":1},{""type"":""pointer"",""size"":8}]",[],Save variant of wuj.c (protostar/stack_four.c)
+hbm.c,protostar/stack_five.c,stack_overflow,true,10,main,"int main(int argc, char **argv)","[{""type"":""concrete"",""value"":1},{""type"":""pointer"",""size"":8}]",[],args irrelevant
+vkd.c,,safe,false,,main,"int main(int argc, char **argv)","[{""type"":""concrete"",""value"":1},{""type"":""pointer"",""size"":8}]",[],Save variant of hbm.c (protostar/stack_five.c)
+nqa.c,protostar/stack_six.c,stack_overflow,true,13,getpath,void getpath(),[],[],
+xfl.c,,safe,false,,getpath,void getpath(),[],[],Save variant of nqa.c (protostar/stack_six.c)
+tso.c,protostar/stack_seven.c,stack_overflow,true,13,,,,,
+gry.c,,safe,false,,,,,,Save variant of tso.c (protostar/stack_seven.c)
+plw.c,protostar/heap_zero.c,heap_overflow,true,36,,,,,
+cmz.c,,safe,false,,,,,,Save variant of plw.c (protostar/heap_zero.c)
+ebk.c,protostar/heap_one.c,heap_overflow,true,29,,,,,
+uhj.c,,safe,false,,,,,,Save variant of ebk.c (protostar/heap_one.c)
+idn.c,protostar/heap_two.c,use_after_free,true,38,,,,,
+arf.c,,safe,false,,,,,,Save variant of idn.c (protostar/heap_two.c)
+ovm.c,protostar/heap_three.c,heap_overflow,true,20,,,,,
+lqt.c,,safe,false,,,,,,Save variant of ovm.c (protostar/heap_three.c)
+swp.c,protostar/format_zero.c,format_string,true,13,,,,,
+kxe.c,,safe,false,,,,,,Save variant of swp.c (protostar/format_zero.c)
+dzb.c,protostar/format_one.c,format_string,true,10,,,,,
+jmy.c,,safe,false,,,,,,Save variant of dzb.c (protostar/format_one.c)
+fnc.c,protostar/format_two.c,format_string,true,13,,,,,
+rhl.c,,safe,false,,,,,,Save variant of fnc.c (protostar/format_two.c)
+wgs.c,protostar/format_three.c,format_string,true,10,,,,,
+ztp.c,,safe,false,,,,,,Save variant of wgs.c (protostar/format_three.c)
+hkv.c,protostar/format_four.c,format_string,true,20,,,,,
+nxd.c,,safe,false,,,,,,Save variant of hkv.c (protostar/format_four.c)
+tqm.c,cylab_academy/heap_0.c,heap_overflow,true,63,,,,,
+gbo.c,,safe,false,,,,,,Save variant of tqm.c (cylab_academy/heap_0.c)
+pyr.c,cylab_academy/heap_1.c,heap_overflow,true,63,,,,,
+cwl.c,,safe,false,,,,,,Save variant of pyr.c (cylab_academy/heap_1.c)
+ejk.c,cylab_academy/heap_2.c,heap_overflow,true,44,,,,,
+usz.c,,safe,false,,,,,,Save variant of ejk.c (cylab_academy/heap_2.c)
+ivp.c,cylab_academy/heap_3.c,heap_overflow,true,62,,,,,
+ahm.c,,safe,false,,,,,,Save variant of ivp.c (cylab_academy/heap_3.c)
+sdt.c,cylab_academy/buffer_overflow_0.c,stack_overflow,true,"18, 40",,,,,2 vulnerabilities
+kqw.c,,safe,false,,,,,,Save variant of sdt.c (cylab_academy/buffer_overflow_0.c)
+fvl.c,cylab_academy/format-string-0.c,format_string,true,"68, 98",,,,,2 vulnerabilities
+rzm.c,,safe,false,,,,,,Save variant of fvl.c (cylab_academy/format-string-0.c)
+hkn.c,cylab_academy/format-string-1.c,format_string,true,36,,,,,
+nqt.c,,safe,false,,,,,,Save variant of hkn.c (cylab_academy/format-string-1.c)
+tob.c,cylab_academy/format-string-2.c,format_string,true,14,,,,,
+gxy.c,,safe,false,,,,,,Save variant of tob.c (cylab_academy/format-string-2.c)
+pmz.c,cylab_academy/format-string-3.c,format_string,true,26,,,,,
+cwr.c,,safe,false,,,,,,Save variant of pmz.c (cylab_academy/format-string-3.c)
+elk.c,cylab_academy/echo_escape_1.c,stack_overflow,true,28,,,,,
+uvj.c,,safe,false,,,,,,Save variant of elk.c (cylab_academy/echo_escape_1.c)
+isp.c,overthewire/narnia0.c,stack_overflow,true,11,,,,,
+adn.c,,safe,false,,,,,,Save variant of isp.c (overthewire/narnia0.c)
+ohm.c,house_of_water.c,Use-After-Free,true,all,,,,,
+sbq.c,fastbin_reverse_into_tcache.c,Use-After-Free,true,65,,,,,
+ktv.c,,safe,false,,,,,,Save variant of sbq.c (fastbin_reverse_into_tcache.c)

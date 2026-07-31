@@ -3,15 +3,14 @@ import json
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
-print(f"Script directory: {SCRIPT_DIR}")
 PROJECT_ROOT = SCRIPT_DIR.parent
 
-SUFFIX = "2907_1_opus_48_high"
+SUFFIX = "3007_sonnet_5_high"
 
 # CONFIGURATION
-GT_FILE = PROJECT_ROOT / "docs/ground_truth.csv"
-EVAL_FILE = PROJECT_ROOT / f"docs/evaluation_report_{SUFFIX}.csv"
-OUTPUT_FILE = PROJECT_ROOT / f"docs/analysis_ready_{SUFFIX}.csv"
+GT_FILE = PROJECT_ROOT / "docs/evaluation/ground_truth.csv"
+EVAL_FILE = PROJECT_ROOT / f"docs/evaluation/evaluation_report_{SUFFIX}.csv"
+OUTPUT_FILE = PROJECT_ROOT / f"docs/evaluation/analysis_ready_{SUFFIX}.csv"
 
 
 def parse_args(json_str):

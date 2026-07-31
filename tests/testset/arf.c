@@ -22,8 +22,8 @@ int main(int argc, char **argv)
     if(fgets(line, sizeof(line), stdin) == NULL) break;
     
     if(strncmp(line, "auth ", 5) == 0) {
-      auth = malloc(sizeof(auth));
-      memset(auth, 0, sizeof(auth));
+      auth = malloc(sizeof(struct auth));
+      memset(auth, 0, sizeof(struct auth));
       if(strlen(line + 5) < 31) {
         strncpy(auth->name, line + 5, sizeof(auth->name) - 1);
       }
@@ -36,7 +36,7 @@ int main(int argc, char **argv)
       service = strdup(line + 7);
     }
     if(strncmp(line, "login", 5) == 0) {
-      if(auth->auth) {
+      if(auth && auth->auth) {
         printf("you have logged in already!\n");
       } else {
         printf("please enter your password\n");

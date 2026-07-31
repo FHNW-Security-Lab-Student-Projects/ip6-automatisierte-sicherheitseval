@@ -4,6 +4,7 @@ from .dwarf_analyzer import DwarfAnalyzer
 from abc import abstractmethod
 import angr
 import claripy
+import threading
 from itertools import chain
 from typing import List, Dict, Any
 import logging
@@ -31,6 +32,7 @@ class BaseMemorySolver(BaseSolver):
         target_function: str = None,
         function_args: List[Any] = None,
         structs: List[Dict[str, Any]] = None,
+        stop_event: threading.Event = None,
     ) -> Dict[str, Any]:
         logger.info("Running %s solver...", self.vulnerability_type)
 
@@ -138,11 +140,15 @@ class BaseMemorySolver(BaseSolver):
         )
 
         # 5. Simulation Loop
-        simgr = project.factory.simulation_manager(state)
-        local_loop_seer = angr.exploration_techniques.LocalLoopSeer(bound=10)
-        simgr.use_technique(local_loop_seer)
-        step_count = 0
         simulation_cfg = get_config()["solver"]["base_memory"]["simulation"]
+        simgr = project.factory.simulation_manager(state)
+
+        # Loop bound for LocalLoopSeer to prevent infinite loops during symbolic execution
+        loop_bound = simulation_cfg.get("loop_bound", 10)
+        local_loop_seer = angr.exploration_techniques.LocalLoopSeer(bound=loop_bound)
+        simgr.use_technique(local_loop_seer)
+
+        step_count = 0
         max_steps = simulation_cfg["max_steps"]
         step_size = simulation_cfg["step_size"]
         logger.debug(
@@ -152,6 +158,11 @@ class BaseMemorySolver(BaseSolver):
         )
         max_simngr_active = 0
         while len(simgr.active) > 0 and step_count < max_steps:
+            if stop_event and stop_event.is_set():
+                logger.warning(
+                    f"Solver '{self.vulnerability_type}' received stop signal. Aborting gracefully."
+                )
+                break
             if len(simgr.unconstrained) > 0 or len(simgr.errored) > 0:
                 logger.info(
                     "Found %d unconstrained and %d errored states at step %d. Stopping early.",

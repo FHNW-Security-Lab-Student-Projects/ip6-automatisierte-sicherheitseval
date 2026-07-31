@@ -1,7 +1,5 @@
 from .base_memory_solver import BaseMemorySolver
-from .hooks.heap_hooks import MyFakeMalloc
-from .hooks.heap_hooks import MyFakeCalloc
-from .hooks.heap_hooks import MyFakeAlignedAlloc
+from .hooks.heap_hooks import MyFakeMalloc, MyFakeCalloc, MyFakeAlignedAlloc
 import logging
 
 logger = logging.getLogger(__name__)
@@ -17,6 +15,12 @@ class HeapOverflowSolver(BaseMemorySolver):
         """
         Hooks memory allocation functions (malloc, calloc, etc.).
         Tries to hook via symbol table.
+        """
+        self._install_alloc_hooks(project)
+
+    def _install_alloc_hooks(self, project):
+        """
+        Helper method to install standard allocation hooks.
         """
         # Mapping of function names to their corresponding hook classes
         hooks_to_install = {

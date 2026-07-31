@@ -1,0 +1,21 @@
+classDiagram
+    class BaseSolver {
+        <<Abstract>>
+    }
+
+    class BaseMemorySolver {
+        Orchestrator für symbolische Ausführung
+    }
+
+    class StackOverflowSolver
+    class HeapOverflowSolver
+    class FormatStringSolver
+    class UseAfterFreeSolver
+
+    BaseSolver <|-- BaseMemorySolver
+    BaseMemorySolver <|-- StackOverflowSolver
+    BaseMemorySolver <|-- HeapOverflowSolver
+    BaseMemorySolver <|-- FormatStringSolver
+    HeapOverflowSolver <|-- UseAfterFreeSolver
+
+    note for BaseMemorySolver "Implementiert den kompletten\nAblauf: Setup, Simulation,\nEvaluation (solve-Methode)"

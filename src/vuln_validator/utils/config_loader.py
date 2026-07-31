@@ -26,6 +26,7 @@ _DEFAULTS: Dict[str, Any] = {
         },
     },
     "analyzer": {
+        "timeout_seconds": 180,
         "auto_stop_on_first_found": False,
         "specific_stop_on_first_found": True,
         "specific_continue_on_no_find": False,
@@ -207,6 +208,11 @@ def get_config() -> Dict[str, Any]:
             },
         },
         "analyzer": {
+            "timeout_seconds": _int_cfg(
+                raw,
+                ("analyzer", "timeout_seconds"),
+                "analyzer.timeout_seconds",
+            ),
             "auto_stop_on_first_found": _bool_cfg(
                 raw,
                 ("analyzer", "auto_stop_on_first_found"),

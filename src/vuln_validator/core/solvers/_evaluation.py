@@ -196,11 +196,20 @@ def evaluate_results(
             found_vuln = True
             break
 
+    # Check 5: Double Free Detection via Hooks
+    warning = None
+    for state in chain(simgr.active, simgr.deadended, simgr.unconstrained):
+        if state.globals.get("double_free_detected", False):
+            warning = "Double Free detected in execution path (Potential DoS). Note: Modern glibc prevents exploitation via abort(). Old glibc versions may allow exploitation. Further analysis recommended."
+            break
+
     if found_vuln:
         msg = f"{vulnerability_type.replace('_', ' ').title()} confirmed in '{target_function}'."
     else:
         msg = f"No {vulnerability_type.replace('_', ' ').title()} found in '{target_function}'."
         if message:
             msg += f" Additional info: {message}"
+        if warning:
+            msg += f" Warning: {warning}"
 
     return build_result(found_vuln, target_function, evidence_list, msg)

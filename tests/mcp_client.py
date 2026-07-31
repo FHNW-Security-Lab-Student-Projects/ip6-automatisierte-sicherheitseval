@@ -1,4 +1,5 @@
 import sys
+import time
 import logging
 import asyncio
 from pathlib import Path
@@ -11,12 +12,26 @@ from mcp.client.session import ClientSession
 from vuln_validator.utils.logging_config import setup_logging
 
 
+async def _call_json(session: ClientSession, name: str, arguments: dict, logger):
+    """Ruft ein Tool auf und gibt dessen JSON-Antwort als dict zurück."""
+    result = await session.call_tool(name, arguments)
+    if result.isError:
+        msgs = [c.text for c in result.content if hasattr(c, "text")]
+        raise RuntimeError(f"Tool '{name}' failed: {' '.join(msgs) or '(no detail)'}")
+    for content in result.content:
+        if hasattr(content, "text"):
+            return json.loads(content.text)
+    raise RuntimeError(f"Tool '{name}' returned no text content.")
+
+
 async def run_analysis_cli(
     binary_path: str,
     target_function: str = None,
     vuln_type: str = "auto",
     function_args: List[Any] = None,
     structs: List[Dict[str, Any]] = None,
+    poll_interval: float = 5.0,  # Seconds between polling attempts (client-side)
+    max_wait_seconds: float = 600.0,  # Total time to wait for the analysis result (client-side)
 ):
     logger = logging.getLogger("vuln_validator.mcp_client")
     # Define Server parameters (must match the Claude config)
@@ -39,13 +54,12 @@ async def run_analysis_cli(
             tool_names = [t.name for t in tools.tools]
             logger.debug(f"Available tools: {tool_names}")
 
-            if "validate_vulnerability" not in tool_names:
-                logger.error("Tool 'validate_vulnerability' not found on server!")
-                return
+            for required in ("start_validation", "get_validation_result"):
+                if required not in tool_names:
+                    logger.error(f"Tool '{required}' not found on server!")
+                    return
 
-            # 3. Call the Tool
-            logger.debug(f"Calling validate_vulnerability for {binary_path}")
-
+            # 3. Phase 1: Start the analysis job
             arguments = {
                 "target_path": str(Path(binary_path).resolve()),
             }
@@ -58,24 +72,56 @@ async def run_analysis_cli(
             if structs:
                 arguments["structs"] = structs
 
-            result = await session.call_tool("validate_vulnerability", arguments)
-
-            # 4. Process Result
-            if result.isError:
-                logger.error(
-                    "Tool execution failed! Details: session.call_tool returned an error."
-                )
-                for content in result.content:
-                    if hasattr(content, "text"):
-                        logger.error(f"Error content: {content.text}")
+            logger.debug(f"Calling start_validation for {binary_path}")
+            start = await _call_json(session, "start_validation", arguments, logger)
+            job_id = start.get("job_id")
+            if not job_id:
+                logger.error(f"start_validation returned no job_id: {start}")
                 return
+            logger.info(f"Job started (job_id={job_id}, status={start.get('status')})")
 
-            # Output parsing
-            for content in result.content:
-                if hasattr(content, "text"):
-                    logger.info("Received tool output:")
-                    data = json.loads(content.text)
-                    logger.info(json.dumps(data, indent=2))
+            # 4. Phase 2: Poll for the result until done or timeout
+            deadline = time.monotonic() + max_wait_seconds
+            elapsed_start = time.monotonic()
+            while True:
+                await asyncio.sleep(poll_interval)
+
+                res = await _call_json(
+                    session, "get_validation_result", {"job_id": job_id}, logger
+                )
+                status = res.get("status")
+
+                if status == "running":
+                    waited = int(time.monotonic() - elapsed_start)
+                    logger.info(f"… still running ({waited}s elapsed)")
+                    if time.monotonic() > deadline:
+                        logger.error(
+                            f"Client deadline of {max_wait_seconds:.0f}s reached, "
+                            f"giving up (job {job_id} still running on server)."
+                        )
+                        return
+                    continue
+
+                if status == "done":
+                    total = int(time.monotonic() - elapsed_start)
+                    logger.info(f"Analysis finished after ~{total}s. Result:")
+                    logger.info(json.dumps(res.get("result"), indent=2))
+                    return
+
+                if status == "error":
+                    logger.error(
+                        f"Analysis error [{res.get('error')}]: {res.get('message')}"
+                    )
+                    return
+
+                if status == "unknown":
+                    logger.error(
+                        f"Job unknown (server restarted?): {res.get('message')}"
+                    )
+                    return
+
+                logger.error(f"Unexpected status from server: {res}")
+                return
 
 
 def main():

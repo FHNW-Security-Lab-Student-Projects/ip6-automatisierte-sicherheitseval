@@ -1,5 +1,5 @@
 ```bash
-validate_vulnerability(
+start_validation(
     target_path="tests/fixtures/heap_overflow/simple_overflow.c",
     target_function="create_user",
     vulnerability_type="stack_overflow",

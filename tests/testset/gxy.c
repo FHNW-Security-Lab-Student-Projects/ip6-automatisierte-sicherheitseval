@@ -9,7 +9,7 @@ int main() {
 
   printf("You don't have what it takes. Only a true wizard could change my suspicions. What do you have to say?\n");
   fflush(stdout);
-  scanf("%1024s", buf);
+  scanf("%1023s", buf);
   printf("Here's your input: ");
   printf("%s", buf);
   printf("\n");

@@ -55,6 +55,5 @@ elk.c,True,stack_overflow,nan,stack_overflow,main,True,True,vuln_found,True,stac
 uvj.c,False,safe,nan,none,none,True,False,no_solver_call,False,none,0,TRUE_NEGATIVE_LLM
 isp.c,True,stack_overflow,nan,stack_overflow,main,True,True,no_vuln_found,False,stack_overflow,0,FALSE_NEGATIVE_SOLVER
 adn.c,False,safe,nan,none,none,True,False,no_solver_call,False,none,0,TRUE_NEGATIVE_LLM
-ohm.c,True,Use-After-Free,nan,none,none,False,False,no_solver_call,False,none,0,FALSE_NEGATIVE_LLM
 sbq.c,True,Use-After-Free,nan,none,none,False,False,no_solver_call,False,none,0,FALSE_NEGATIVE_LLM
 ktv.c,False,safe,nan,none,none,True,False,no_solver_call,False,none,0,TRUE_NEGATIVE_LLM

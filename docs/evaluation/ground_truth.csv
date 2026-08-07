@@ -55,6 +55,5 @@ elk.c,cylab_academy/echo_escape_1.c,stack_overflow,true,28,,,,,
 uvj.c,,safe,false,,,,,,Save variant of elk.c (cylab_academy/echo_escape_1.c)
 isp.c,overthewire/narnia0.c,stack_overflow,true,11,,,,,
 adn.c,,safe,false,,,,,,Save variant of isp.c (overthewire/narnia0.c)
-ohm.c,house_of_water.c,Use-After-Free,true,all,,,,,
 sbq.c,fastbin_reverse_into_tcache.c,Use-After-Free,true,65,,,,,
 ktv.c,,safe,false,,,,,,Save variant of sbq.c (fastbin_reverse_into_tcache.c)

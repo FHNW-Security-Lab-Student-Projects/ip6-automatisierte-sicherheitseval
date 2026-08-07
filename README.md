@@ -155,6 +155,7 @@ The framework reads `config.toml` from the repository root. There you can adjust
 | symbolic_stdin_bytes | Size of the symbolic stdin buffer (if too small may miss bugs, but smaller is faster). |
 | heap_start | Start address for the fake heap (adjust if it collides with mapped regions). |
 | arg_start | Start address for symbolic argument data (adjust if it collides with mapped regions). |
+| timeout_seconds | Maximum time for analysis before framework stops it. |
 | auto_stop_on_first_found | In auto mode: Stop analysis immediately after the first positive result. |
 | specific_stop_on_first_found | In specific mode: Stop when the requested vulnerability type is found. |
 | specific_continue_on_no_find | 	In specific mode: Continue checking other types if the requested one is not found. |

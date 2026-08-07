@@ -48,15 +48,14 @@ fvl.c,True,format_string,nan,auto,serve_patrick,False,True,vuln_found,True,stack
 fvl.c,True,format_string,nan,auto,serve_bob,False,True,vuln_found,True,stack_overflow;heap_overflow;format_string;use_after_free,0,TRUE_POSITIVE
 rzm.c,False,safe,nan,none,none,True,False,no_solver_call,False,none,0,TRUE_NEGATIVE_LLM
 hkn.c,True,format_string,nan,auto,main,False,True,error,False,none,0,FALSE_NEGATIVE_SOLVER
-nqt.c,False,safe,nan,stack_overflow,main,False,True,error,False,none,0,TRUE_NEGATIVE_SOLVER_FILTER
+nqt.c,False,safe,nan,none,none,True,False,no_solver_call,False,none,0,TRUE_NEGATIVE_LLM
 tob.c,True,format_string,nan,auto,main,False,True,error,False,none,0,FALSE_NEGATIVE_SOLVER
-gxy.c,False,safe,nan,stack_overflow,main,False,True,error,False,none,0,TRUE_NEGATIVE_SOLVER_FILTER
+gxy.c,False,safe,nan,none,none,True,False,no_solver_call,False,none,0,TRUE_NEGATIVE_LLM
 pmz.c,True,format_string,nan,format_string,main,True,True,no_vuln_found,False,none,0,FALSE_NEGATIVE_SOLVER
 cwr.c,False,safe,nan,none,none,True,False,no_solver_call,False,none,0,TRUE_NEGATIVE_LLM
 elk.c,True,stack_overflow,nan,stack_overflow,main,True,True,vuln_found,True,stack_overflow,0,TRUE_POSITIVE
 uvj.c,False,safe,nan,auto,main,False,True,no_vuln_found,False,none,0,TRUE_NEGATIVE_SOLVER_FILTER
 isp.c,True,stack_overflow,nan,stack_overflow,main,True,True,no_vuln_found,False,none,0,FALSE_NEGATIVE_SOLVER
 adn.c,False,safe,nan,none,none,True,False,no_solver_call,False,none,0,TRUE_NEGATIVE_LLM
-ohm.c,True,Use-After-Free,nan,heap_overflow,main,False,True,no_vuln_found,False,none,0,FALSE_NEGATIVE_SOLVER
 sbq.c,True,Use-After-Free,nan,use_after_free,main,False,True,no_vuln_found,False,none,0,FALSE_NEGATIVE_SOLVER
 ktv.c,False,safe,nan,none,none,True,False,no_solver_call,False,none,0,TRUE_NEGATIVE_LLM

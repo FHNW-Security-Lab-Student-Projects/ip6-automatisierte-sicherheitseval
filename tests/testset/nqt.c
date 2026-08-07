@@ -31,7 +31,7 @@ int main() {
 
   printf("Give me your order and I'll read it back to you:\n");
   fflush(stdout);
-  scanf("%1024s", buf);
+  scanf("%1023s", buf);
   printf("Here's your order: ");
   printf("%s", buf);
   printf("\n");

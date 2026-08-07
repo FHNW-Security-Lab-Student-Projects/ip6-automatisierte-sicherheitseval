@@ -1,3 +1,25 @@
+## [1.0.0] - 2026-08-07
+
+### 🐛 Bug Fixes
+
+- Update safe binaries in testset
+- Increase number of chars format string specifier
+- Change order of format string specifier
+
+### 📚 Documentation
+
+- Update Readme (timeout)
+
+### 🧪 Testing
+
+- Add pytest for UAF-Solver
+
+### ⚙️ Miscellaneous Tasks
+
+- Update example request diagramm
+- Remove unused files
+- Add all binaries for uaf
+- *(merge)* Merge pull request #9 from FHNW-Security-Lab-Student-Projects/dev
 ## [0.7.0] - 2026-07-31
 
 ### 🚀 Features
@@ -57,6 +79,7 @@
 - Update evluation script
 - Update safe binary
 - *(merge)* Merge pull request #8 from FHNW-Security-Lab-Student-Projects/dev
+- Update changelog
 ## [0.6.0] - 2026-07-14
 
 ### 🚀 Features

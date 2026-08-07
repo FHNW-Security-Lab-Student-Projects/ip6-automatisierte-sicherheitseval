@@ -38,9 +38,28 @@ class ScanfHook(angr.SimProcedure):
         if b"%" in fmt_str:
             idx = fmt_str.find(b"%")
             # Check next 7 chars for specifier
+            logger.debug("Scanf format string: %s", fmt_str)
             snippet = fmt_str[idx : idx + 7]
 
-            if (
+            if b"s" in snippet:
+                logger.debug(
+                    "Scanf format string contains %%s. Defaulting to 256 bytes."
+                )
+                input_size = 512
+            elif b"l" in snippet:
+                logger.debug("Scanf format string contains %%l. Defaulting to 8 bytes.")
+                input_size = 8
+            elif (
+                b"f" in snippet or b"F" in snippet or b"e" in snippet or b"g" in snippet
+            ):
+                logger.debug(
+                    "Scanf format string contains %%f/%%F/%%e/%%g. Defaulting to 4 bytes."
+                )
+                input_size = 8
+            elif b"c" in snippet:
+                logger.debug("Scanf format string contains %%c. Defaulting to 1 byte.")
+                input_size = 1
+            elif (
                 b"d" in snippet
                 or b"i" in snippet
                 or b"u" in snippet
@@ -48,17 +67,10 @@ class ScanfHook(angr.SimProcedure):
                 or b"p" in snippet
                 or b"n" in snippet
             ):
+                logger.debug(
+                    "Scanf format string contains %%d/%%i/%%u/%%x/%%p/%%n. Defaulting to 4 bytes."
+                )
                 input_size = 4
-            elif b"l" in snippet:
-                input_size = 8
-            elif b"s" in snippet:
-                input_size = 512
-            elif (
-                b"f" in snippet or b"F" in snippet or b"e" in snippet or b"g" in snippet
-            ):
-                input_size = 8
-            elif b"c" in snippet:
-                input_size = 1
             else:
                 logger.warning(
                     "Unknown format specifier in scanf: %s. Defaulting to 8 bytes.",

@@ -37,8 +37,8 @@ class ScanfHook(angr.SimProcedure):
 
         if b"%" in fmt_str:
             idx = fmt_str.find(b"%")
-            # Check next 3 chars for specifier
-            snippet = fmt_str[idx : idx + 3]
+            # Check next 7 chars for specifier
+            snippet = fmt_str[idx : idx + 7]
 
             if (
                 b"d" in snippet

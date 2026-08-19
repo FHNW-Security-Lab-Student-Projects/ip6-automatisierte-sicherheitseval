@@ -127,9 +127,9 @@ class BaseMemorySolver(BaseSolver):
         dwarf_analyzer.adjust_libc_limits(state, addr)
 
         # 4. Specific setup delegation (The child solver does the magic)
-        symbolic_args = self._place_buffers_and_canaries(state, project, function_args)
+        bv_args = self._place_buffers_and_canaries(state, project, function_args)
 
-        if symbolic_args is None:  # Error during buffer/canary setup
+        if bv_args is None:  # Error during buffer/canary setup
             return self._build_result(
                 False, target_function, [], "Failed to setup buffers."
             )
@@ -203,7 +203,7 @@ class BaseMemorySolver(BaseSolver):
         return evaluate_results(
             simgr,
             canaries,
-            symbolic_args,
+            bv_args,
             symbolic_stdin,
             target_function,
             structs,
@@ -217,7 +217,7 @@ class BaseMemorySolver(BaseSolver):
     def _place_buffers_and_canaries(self, state, project, function_args):
         """
         Has to be implemented by the child solver.
-        Return: (symbolic_args)
+        Return: (bv_args)
         """
         pass
 
@@ -232,7 +232,7 @@ class BaseMemorySolver(BaseSolver):
         Places arguments in registers and/or memory as needed, and returns a list of symbolic variables for the arguments.
         Supports both concrete and symbolic arguments, as well as struct arguments (which are treated as symbolic buffers).
         """
-        symbolic_args = []
+        bv_args = []
         buffer_infos = []
         regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
         has_pointer = False
@@ -265,16 +265,16 @@ class BaseMemorySolver(BaseSolver):
                         value = arg.get("value", 0)
                         self._write_to_register(regs, state, i, value)
                         val = claripy.BVV(value, 64)
-                        symbolic_args.append(val)
+                        bv_args.append(val)
                     else:
                         size = arg.get("size", 64)
                         is_struct = arg.get("is_struct", False)
                         if is_struct:
                             var = claripy.BVV(0, size * 8)
-                            symbolic_args.append(var)
+                            bv_args.append(var)
                         else:
                             var = claripy.BVS(f"arg_{i}", size * 8)
-                            symbolic_args.append(var)
+                            bv_args.append(var)
 
                         if arg_type == "pointer":
                             has_pointer = True
@@ -310,7 +310,7 @@ class BaseMemorySolver(BaseSolver):
                     state.libc.buf_symbolic_bytes, bound
                 )
 
-        return symbolic_args, buffer_infos
+        return bv_args, buffer_infos
 
     def _write_to_register(self, regs, state, i, buffer_addr):
         """Writes the given buffer address to the appropriate register based on the argument index."""

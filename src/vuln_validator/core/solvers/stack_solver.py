@@ -15,11 +15,11 @@ class StackOverflowSolver(BaseMemorySolver):
         pass
 
     def _place_buffers_and_canaries(self, state, project, function_args):
-        symbolic_args, buffers = self._place_args(
+        bv_args, buffers = self._place_args(
             state, project, function_args, buffer_padding=0x4
         )
         self._place_stack_canaries(state, project, buffers, padding_size=0x4)
-        return symbolic_args
+        return bv_args
 
     def _place_stack_canaries(self, state, project, buffers, padding_size: int = 0x4):
         """

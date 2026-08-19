@@ -44,5 +44,5 @@ class HeapOverflowSolver(BaseMemorySolver):
                 )
 
     def _place_buffers_and_canaries(self, state, project, function_args):
-        symbolic_args, _ = self._place_args(state, project, function_args)
-        return symbolic_args
+        bv_args, _ = self._place_args(state, project, function_args)
+        return bv_args

@@ -47,5 +47,5 @@ class FormatStringSolver(BaseMemorySolver):
         """
         Placement of symbolic arguments.
         """
-        symbolic_args, _ = self._place_args(state, project, function_args)
-        return symbolic_args
+        bv_args, _ = self._place_args(state, project, function_args)
+        return bv_args

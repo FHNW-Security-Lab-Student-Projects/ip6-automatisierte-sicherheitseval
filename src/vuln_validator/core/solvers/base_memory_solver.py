@@ -264,11 +264,14 @@ class BaseMemorySolver(BaseSolver):
                     if arg_type == "concrete":
                         value = arg.get("value", 0)
                         self._write_to_register(regs, state, i, value)
+                        val = claripy.BVV(value, 64)
+                        symbolic_args.append(val)
                     else:
                         size = arg.get("size", 64)
                         is_struct = arg.get("is_struct", False)
                         if is_struct:
                             var = claripy.BVV(0, size * 8)
+                            symbolic_args.append(var)
                         else:
                             var = claripy.BVS(f"arg_{i}", size * 8)
                             symbolic_args.append(var)

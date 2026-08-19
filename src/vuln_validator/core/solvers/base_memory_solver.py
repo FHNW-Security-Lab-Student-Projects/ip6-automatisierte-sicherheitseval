@@ -221,7 +221,7 @@ class BaseMemorySolver(BaseSolver):
         """
         pass
 
-    def _place_symbolic_args(
+    def _place_args(
         self,
         state,
         project,

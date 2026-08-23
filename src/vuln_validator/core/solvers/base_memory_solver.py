@@ -265,16 +265,95 @@ class BaseMemorySolver(BaseSolver):
                         value = arg.get("value", 0)
                         self._write_to_register(regs, state, i, value)
                         val = claripy.BVV(value, 64)
-                        bv_args.append(val)
+                        bv_args.append((f"arg_{i}", val))
+                    elif arg_type == "list":
+                        size = arg.get("size", 64)
+                        logger.info("Placing list argument %d with fields: %s", i, arg)
+                        fields = arg.get("fields", [])
+                        argv = []
+                        for j, field in enumerate(fields):
+                            field_size = field.get("size", 8)
+                            field_var = claripy.BVS(
+                                f"arg_{i}_field_{j}", field_size * 8
+                            )
+                            # if field_size > 1:
+                            #     content_bytes = claripy.BVS(f"arg_{i}_field_{j}_content", (field_size - 1) * 8)
+                            #     null_terminator = claripy.BVV(0, 8)
+                            #     field_var = claripy.Concat(content_bytes, null_terminator)
+                            # else:
+                            #     field_var = claripy.BVV(0, 8) # Edge case
+                            bv_args.append((f"arg_{i}_field_{j}", field_var))
+                            has_pointer = True
+                            max_size = max(max_size, field_size)
+
+                            pad = buffer_padding
+                            current_offset += field_size + pad
+                            field_addr = arg_start - current_offset
+                            current_offset += pad
+                            argv.append(field_addr)
+
+                            logger.info(
+                                "Storing symbolic field %d of argument %d at address: 0x%x",
+                                j,
+                                i,
+                                field_addr,
+                            )
+                            state.memory.store(field_addr, field_var)
+
+                            buffer_infos.append(
+                                {
+                                    "addr": field_addr,
+                                    "size": field_size,
+                                    "arg_idx": i,
+                                    "field_idx": j,
+                                }
+                            )
+                        argv.append(0)  # Null-terminate the list of addresses
+                        current_offset += (
+                            len(argv) * 8
+                        )  # Space for the list of pointers
+                        for j, addr in enumerate(argv):
+                            pointer = claripy.BVV(addr, 64)
+                            list_addr = arg_start - current_offset + j * 8
+                            state.memory.store(
+                                list_addr, pointer, endness=project.arch.memory_endness
+                            )
+                            logger.info(
+                                "Storing pointer to field %d of argument %d at address: 0x%x pointing to 0x%x",
+                                j,
+                                i,
+                                list_addr,
+                                addr,
+                            )
+                        list_addr = arg_start - current_offset
+                        for j, addr in enumerate(argv):
+                            content = state.memory.load(
+                                list_addr + j * 8,
+                                8,
+                                endness=project.arch.memory_endness,
+                            )
+                            logger.info(
+                                "Extracted pointer for field %d of argument %d from state: 0x%x at address: 0x%x",
+                                j,
+                                i,
+                                state.solver.eval(content),
+                                list_addr + j * 8,
+                            )
+                        logger.info(
+                            "Storing pointer to register pointing to list of fields starting at 0x%x",
+                            list_addr,
+                        )
+                        self._write_to_register(regs, state, i, list_addr)
+
                     else:
                         size = arg.get("size", 64)
                         is_struct = arg.get("is_struct", False)
                         if is_struct:
                             var = claripy.BVV(0, size * 8)
-                            bv_args.append(var)
+                            bv_args.append((f"arg_{i}", var))
                         else:
                             var = claripy.BVS(f"arg_{i}", size * 8)
-                            bv_args.append(var)
+                            bv_args.append((f"arg_{i}", var))
 
                         if arg_type == "pointer":
                             has_pointer = True
@@ -299,6 +378,7 @@ class BaseMemorySolver(BaseSolver):
                             self._write_to_register(regs, state, i, buffer_addr)
                         elif arg_type == "variable":
                             self._write_to_register(regs, state, i, var)
+
                 else:
                     self._write_to_register(regs, state, i, arg)
 

@@ -23,19 +23,20 @@ def _format_input_bytes(
     return preview
 
 
-def _get_cause(state, symbolic_args: List[Any], symbolic_stdin: Any) -> Dict[str, Any]:
+def _get_cause(state, bv_args: List[Any], symbolic_stdin: Any) -> Dict[str, Any]:
     details = {
         "input_hex": {},
         "stdin_used": False,
     }
 
-    for idx, sym_arg in enumerate(symbolic_args):
+    for idx, item in enumerate(bv_args):
+        name, bv_arg = item if isinstance(item, tuple) else (f"arg_{idx}", item)
         try:
-            val = state.solver.eval(sym_arg, cast_to=bytes)
-            details["input_hex"][f"arg_{idx}"] = _format_input_bytes(val)
+            val = state.solver.eval(bv_arg, cast_to=bytes)
+            details["input_hex"][name] = _format_input_bytes(val)
         except Exception as e:
             logger.warning("Failed to extract arg %d from %s state: %s", idx, state, e)
-            details["input_hex"][f"arg_{idx}"] = "Extraction failed"
+            details["input_hex"][name] = "Extraction failed"
 
     try:
         poc = state.solver.eval(symbolic_stdin, cast_to=bytes)
@@ -69,7 +70,7 @@ def _get_cause(state, symbolic_args: List[Any], symbolic_stdin: Any) -> Dict[str
 def evaluate_results(
     simgr,
     canaries,
-    symbolic_args,
+    bv_args,
     symbolic_stdin,
     target_function: str,
     structs: List[Dict[str, Any]],
@@ -93,7 +94,7 @@ def evaluate_results(
     # Check 1: Symbolic RIP (Control Flow Hijack)
     for state in simgr.unconstrained:
         if state.solver.symbolic(state.regs.rip):
-            vuln_data = _get_cause(state, symbolic_args, symbolic_stdin)
+            vuln_data = _get_cause(state, bv_args, symbolic_stdin)
             vuln_data["state_type"] = "unconstrained"
             vuln_data["description"] = "Unconstrained state with symbolic RIP detected."
             evidence_list.append(vuln_data)
@@ -124,7 +125,7 @@ def evaluate_results(
 
                 if is_hit:
                     canary_hit = True
-                    vuln_data = _get_cause(state, symbolic_args, symbolic_stdin)
+                    vuln_data = _get_cause(state, bv_args, symbolic_stdin)
                     vuln_data["state_type"] = "canary_hit"
                     vuln_data["description"] = (
                         f"Canary at 0x{c['addr']:x} {reason}. Indicates overflow."
@@ -167,7 +168,7 @@ def evaluate_results(
                             field_addr, size, endness=state.project.arch.memory_endness
                         )
                         if state.solver.symbolic(current_val):
-                            vuln_data = _get_cause(state, symbolic_args, symbolic_stdin)
+                            vuln_data = _get_cause(state, bv_args, symbolic_stdin)
                             vuln_data["state_type"] = "intra_struct_corruption"
                             vuln_data["description"] = (
                                 f"Critical field at offset {offset} in struct '{struct['name']}' became symbolic."
@@ -185,7 +186,7 @@ def evaluate_results(
     # Check 4: Format String Vulnerability Detection via Hooks
     for state in chain(simgr.active, simgr.deadended, simgr.unconstrained):
         if state.globals.get("fmt_vulnerable", False):
-            vuln_data = _get_cause(state, symbolic_args, symbolic_stdin)
+            vuln_data = _get_cause(state, bv_args, symbolic_stdin)
             vuln_data["state_type"] = state.globals.get(
                 "fmt_vuln_type", "format_string_write"
             )

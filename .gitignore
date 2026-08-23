@@ -7,4 +7,6 @@ __pycache__/
 scripts/
 logs/
 tests/libs/
+tests/ctf/shellfish_how2heap/
 web/
+.mcp_jobs/

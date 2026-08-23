@@ -50,7 +50,13 @@ class BaseFakeHeapAlloc(angr.SimProcedure):
             logger.warning(
                 f"{self.__class__.__name__} called with symbolic size. Using fallback {FALLBACK_SIZE}."
             )
-            concrete_size = FALLBACK_SIZE
+            if self.state.solver.satisfiable():
+                concrete_size = self.state.solver.eval(total_size)
+                logger.warning(
+                    f"Symbolic size resolved to concrete value: {concrete_size}. Using this value instead of fallback."
+                )
+            else:
+                concrete_size = FALLBACK_SIZE
         else:
             concrete_size = self.state.solver.eval(total_size)
 
